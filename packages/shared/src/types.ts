@@ -1,6 +1,6 @@
 export type QueryMode = "search" | "news" | "scrape";
 export type ProviderCategory = QueryMode;
-export type SourceType = "mock" | "real";
+export type SourceType = "live" | "deterministic-fallback" | "unavailable";
 
 export interface ProviderDefinition {
   id: string;
@@ -30,6 +30,7 @@ export interface QueryResult {
   timestamp: string;
   traceId: string;
   items: ProviderResultItem[];
+  source: SourceType;
   raw?: Record<string, unknown>;
 }
 

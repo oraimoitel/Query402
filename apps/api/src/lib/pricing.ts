@@ -2,6 +2,17 @@ import type { ProviderDefinition } from "@query402/shared";
 
 export const providers: ProviderDefinition[] = [
   {
+    id: "search.live",
+    name: "Live Web Search",
+    category: "search",
+    priceUsd: 0.05,
+    description: "Live real-time search with actual web data.",
+    latencyEstimateMs: 1500,
+    qualityScore: 99,
+    sourceType: "live",
+    enabled: true
+  },
+  {
     id: "search.basic",
     name: "Basic Search",
     category: "search",
@@ -9,7 +20,7 @@ export const providers: ProviderDefinition[] = [
     description: "Fast, broad web signal retrieval for general prompts.",
     latencyEstimateMs: 700,
     qualityScore: 75,
-    sourceType: "mock",
+    sourceType: "deterministic-fallback",
     enabled: true
   },
   {
@@ -20,7 +31,7 @@ export const providers: ProviderDefinition[] = [
     description: "Higher quality ranking with richer snippets.",
     latencyEstimateMs: 1100,
     qualityScore: 90,
-    sourceType: "mock",
+    sourceType: "deterministic-fallback",
     enabled: true
   },
   {
@@ -31,7 +42,7 @@ export const providers: ProviderDefinition[] = [
     description: "Latest headlines with low latency.",
     latencyEstimateMs: 800,
     qualityScore: 72,
-    sourceType: "mock",
+    sourceType: "deterministic-fallback",
     enabled: true
   },
   {
@@ -42,7 +53,7 @@ export const providers: ProviderDefinition[] = [
     description: "Clustered and contextualized stories.",
     latencyEstimateMs: 1400,
     qualityScore: 93,
-    sourceType: "mock",
+    sourceType: "deterministic-fallback",
     enabled: true
   },
   {
@@ -53,7 +64,7 @@ export const providers: ProviderDefinition[] = [
     description: "Raw page extraction with quick metadata.",
     latencyEstimateMs: 1000,
     qualityScore: 70,
-    sourceType: "mock",
+    sourceType: "deterministic-fallback",
     enabled: true
   },
   {
@@ -64,7 +75,7 @@ export const providers: ProviderDefinition[] = [
     description: "Structured entities and concise extraction.",
     latencyEstimateMs: 1700,
     qualityScore: 95,
-    sourceType: "mock",
+    sourceType: "deterministic-fallback",
     enabled: true
   }
 ];

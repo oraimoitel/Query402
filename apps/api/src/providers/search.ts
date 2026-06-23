@@ -1,6 +1,5 @@
-import { nanoid } from "nanoid";
-import type { ProviderResultItem, QueryResult } from "@query402/shared";
-import { getProviderById } from "../lib/pricing.js";
+import { ProviderResultItem } from "@query402/shared";
+import { ProviderAdapter } from "./core.js";
 import { fetchGroqItems } from "../lib/groq.js";
 
 function buildSearchItems(query: string): ProviderResultItem[] {
@@ -27,40 +26,22 @@ function buildSearchItems(query: string): ProviderResultItem[] {
   ];
 }
 
-export async function runSearchProvider(query: string, providerId: string): Promise<QueryResult> {
-  const provider = getProviderById(providerId);
-  if (!provider || provider.category !== "search") {
-    throw new Error(`Unknown search provider: ${providerId}`);
+export class SearchAdapter implements ProviderAdapter {
+  constructor(public id: string) {}
+
+  async isHealthy(): Promise<boolean> {
+    return true;
   }
 
-  const latencyMs = Math.max(120, provider.latencyEstimateMs - 120 + Math.floor(Math.random() * 250));
-  await new Promise((resolve) => setTimeout(resolve, Math.min(1700, latencyMs)));
-
-  let items = buildSearchItems(query);
-  let source = provider.sourceType;
-  try {
+  async execute(query: string): Promise<ProviderResultItem[]> {
     const groqItems = await fetchGroqItems("search", query);
-    if (groqItems && groqItems.length > 0) {
-      items = groqItems;
-      source = "real";
+    if (!groqItems || groqItems.length === 0) {
+      throw new Error("No items returned from search provider");
     }
-  } catch {
-    source = provider.sourceType;
+    return groqItems;
   }
 
-  return {
-    mode: "search",
-    providerId: provider.id,
-    providerName: provider.name,
-    priceUsd: provider.priceUsd,
-    latencyMs,
-    timestamp: new Date().toISOString(),
-    traceId: `trace_${nanoid(12)}`,
-    items,
-    raw: {
-      source,
-      query,
-      rankingProfile: provider.id.includes("pro") ? "semantic_pro" : "fast_basic"
-    }
-  };
+  getFallback(query: string): ProviderResultItem[] {
+    return buildSearchItems(query);
+  }
 }
