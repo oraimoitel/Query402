@@ -3,6 +3,7 @@ import cors from "cors";
 import { publicRouter } from "./routes/public.js";
 import { protectedRouter } from "./routes/protected.js";
 import { paidRouter } from "./routes/demo.js";
+import { sponsorshipRouter } from "./routes/sponsorship.js";
 import { createX402Middleware } from "./lib/x402.js";
 import { logger } from "./lib/logger.js";
 import { config } from "./lib/config.js";
@@ -52,6 +53,7 @@ app.use((req, _res, next) => {
 });
 
 app.use(publicRouter);
+app.use(sponsorshipRouter);
 app.use(createX402Middleware());
 app.use(protectedRouter);
 app.use(paidRouter);

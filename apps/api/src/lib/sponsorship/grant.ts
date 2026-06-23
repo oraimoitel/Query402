@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { SignedGrant, SponsorshipGrant } from "@query402/shared";
 import { config } from "../config.js";
 
@@ -45,4 +45,21 @@ export function verifyGrant(signed: SignedGrant): boolean {
   } catch {
     return false;
   }
+}
+
+export function issueGrant(wallet: string): SignedGrant {
+  const now = new Date();
+  const grant: SponsorshipGrant = {
+    grantId: randomUUID(),
+    wallet,
+    network: config.STELLAR_NETWORK,
+    maxAmountUsd: config.SPONSORSHIP_PER_WALLET_DAILY_BUDGET_USD,
+    expiresAt: new Date(
+      now.getTime() + config.SPONSORSHIP_GRANT_TTL_SECONDS * 1000
+    ).toISOString(),
+    nonce: randomUUID(),
+    issuedAt: now.toISOString()
+  };
+
+  return signGrant(grant);
 }
