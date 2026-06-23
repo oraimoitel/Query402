@@ -11,6 +11,7 @@ publicRouter.get("/health", (_req, res) => {
     ok: true,
     service: "query402-api",
     network: config.STELLAR_NETWORK,
+    sponsorshipEnabled: config.sponsorshipEnabled,
     timestamp: new Date().toISOString()
   });
 });

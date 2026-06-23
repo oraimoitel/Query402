@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { requestAccess } from "@stellar/freighter-api";
 import type { AnalyticsResponse, PaidQueryResponse } from "../types.js";
 import { API_BASE_URL, fetchJson, money } from "../lib/api.js";
+import { fetchSponsorshipEnabled, runSponsoredPaidQuery } from "../lib/sponsorship.js";
 import { runWalletPaidQuery } from "../lib/x402.js";
 
 const modeLabels: Record<QueryMode, string> = {
@@ -39,6 +40,7 @@ export default function ControlDeckPage() {
   const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sponsorshipEnabled, setSponsorshipEnabled] = useState(false);
 
   const modeProviders = useMemo(
     () => providers.filter((provider) => provider.category === mode && provider.enabled),
@@ -84,9 +86,13 @@ export default function ControlDeckPage() {
 
   useEffect(() => {
     async function bootstrap() {
-      const providersResponse = await fetchJson<{ providers: ProviderDefinition[] }>(`${API_BASE_URL}/api/providers`);
+      const [providersResponse, sponsorshipActive] = await Promise.all([
+        fetchJson<{ providers: ProviderDefinition[] }>(`${API_BASE_URL}/api/providers`),
+        fetchSponsorshipEnabled(API_BASE_URL)
+      ]);
       setProviders(providersResponse.providers);
       setSelectedProvider(modeDefaultProvider.search);
+      setSponsorshipEnabled(sponsorshipActive);
       await refreshMetrics();
     }
 
@@ -108,6 +114,12 @@ export default function ControlDeckPage() {
     }
   }, [walletConnected, paymentMode]);
 
+  useEffect(() => {
+    if (!sponsorshipEnabled && paymentMode === "sponsored") {
+      setPaymentMode("wallet");
+    }
+  }, [sponsorshipEnabled, paymentMode]);
+
   async function runPaidQuery() {
     setIsLoading(true);
     setError(null);
@@ -123,15 +135,13 @@ export default function ControlDeckPage() {
               url: mode === "scrape" ? urlInput : undefined,
               walletAddress: connectedWalletAddress
             })
-          : await fetchJson<PaidQueryResponse>(`${API_BASE_URL}/api/paid/run`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                mode,
-                provider: selectedProvider,
-                query: mode === "scrape" ? undefined : queryInput,
-                url: mode === "scrape" ? urlInput : undefined
-              })
+          : await runSponsoredPaidQuery({
+              apiBaseUrl: API_BASE_URL,
+              mode,
+              provider: selectedProvider,
+              query: mode === "scrape" ? undefined : queryInput,
+              url: mode === "scrape" ? urlInput : undefined,
+              walletAddress: connectedWalletAddress
             });
 
       setResult(data);
@@ -229,7 +239,7 @@ export default function ControlDeckPage() {
                 type="button"
                 className={paymentMode === "sponsored" ? "payment-mode-btn active" : "payment-mode-btn"}
                 onClick={() => setPaymentMode("sponsored")}
-                disabled={!walletConnected}
+                disabled={!walletConnected || !sponsorshipEnabled}
               >
                 Sponsored tx
               </button>
@@ -243,7 +253,8 @@ export default function ControlDeckPage() {
               </button>
             </div>
             <p className="wallet-hint">
-              Sponsored mode is available only after wallet connection. If you do not click Sponsored tx, payment continues with wallet tx.
+              Sponsored mode requires wallet connection for ownership proof and an enabled sponsorship policy on the API.
+              {!sponsorshipEnabled ? " Sponsorship is currently disabled on the API." : null}
             </p>
           </div>
 
@@ -381,7 +392,7 @@ export default function ControlDeckPage() {
 
           <div className="script-panel">
             <h3>Live payload preview</h3>
-            <pre>{JSON.stringify({ mode, route: walletConnected ? "wallet" : "sponsored", provider: selectedProvider, input: activeInput }, null, 2)}</pre>
+            <pre>{JSON.stringify({ mode, route: paymentMode, provider: selectedProvider, input: activeInput, sponsorshipEnabled }, null, 2)}</pre>
           </div>
         </aside>
       </main>
