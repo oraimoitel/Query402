@@ -1,6 +1,5 @@
-import { nanoid } from "nanoid";
-import type { ProviderResultItem, QueryResult } from "@query402/shared";
-import { getProviderById } from "../lib/pricing.js";
+import { ProviderResultItem } from "@query402/shared";
+import { ProviderAdapter } from "./core.js";
 import { fetchGroqItems } from "../lib/groq.js";
 
 function buildScrapeItems(targetUrl: string): ProviderResultItem[] {
@@ -34,40 +33,22 @@ function buildScrapeItems(targetUrl: string): ProviderResultItem[] {
   ];
 }
 
-export async function runScrapeProvider(targetUrl: string, providerId: string): Promise<QueryResult> {
-  const provider = getProviderById(providerId);
-  if (!provider || provider.category !== "scrape") {
-    throw new Error(`Unknown scrape provider: ${providerId}`);
+export class ScrapeAdapter implements ProviderAdapter {
+  constructor(public id: string) {}
+
+  async isHealthy(): Promise<boolean> {
+    return true;
   }
 
-  const latencyMs = Math.max(240, provider.latencyEstimateMs - 70 + Math.floor(Math.random() * 420));
-  await new Promise((resolve) => setTimeout(resolve, Math.min(2200, latencyMs)));
-
-  let items = buildScrapeItems(targetUrl);
-  let source = provider.sourceType;
-  try {
+  async execute(targetUrl: string): Promise<ProviderResultItem[]> {
     const groqItems = await fetchGroqItems("scrape", targetUrl);
-    if (groqItems && groqItems.length > 0) {
-      items = groqItems;
-      source = "real";
+    if (!groqItems || groqItems.length === 0) {
+      throw new Error("No items returned from scrape provider");
     }
-  } catch {
-    source = provider.sourceType;
+    return groqItems;
   }
 
-  return {
-    mode: "scrape",
-    providerId: provider.id,
-    providerName: provider.name,
-    priceUsd: provider.priceUsd,
-    latencyMs,
-    timestamp: new Date().toISOString(),
-    traceId: `trace_${nanoid(12)}`,
-    items,
-    raw: {
-      source,
-      url: targetUrl,
-      extractionDepth: provider.id.includes("extract") ? "structured" : "surface"
-    }
-  };
+  getFallback(targetUrl: string): ProviderResultItem[] {
+    return buildScrapeItems(targetUrl);
+  }
 }

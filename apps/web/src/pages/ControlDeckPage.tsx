@@ -271,6 +271,7 @@ export default function ControlDeckPage() {
                   <span>{money(provider.priceUsd)}</span>
                   <span>{provider.latencyEstimateMs}ms</span>
                   <span>Q{provider.qualityScore}</span>
+                  <span className={`source-badge ${provider.sourceType}`}>{provider.sourceType}</span>
                 </div>
               </button>
             ))}
@@ -312,6 +313,7 @@ export default function ControlDeckPage() {
                   <span>{money(result.result.priceUsd)}</span>
                   <span>{result.result.latencyMs}ms</span>
                   <span>{result.result.traceId.slice(0, 12)}</span>
+                  <span className={`source-badge ${result.result.source}`}>Source: {result.result.source}</span>
                 </div>
 
                 <div className="trace-box">
