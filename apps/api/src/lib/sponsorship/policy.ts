@@ -131,6 +131,10 @@ function buildRequestHash(input: AuthorizeSponsoredRunInput): string {
   });
 }
 
+export function buildSponsoredRunRequestHash(input: AuthorizeSponsoredRunInput): string {
+  return buildRequestHash(input);
+}
+
 export function authorizeSponsoredRun(input: AuthorizeSponsoredRunInput): PolicyResult {
   if (!config.sponsorshipEnabled) {
     return deny("denied_sponsorship_disabled", 503, "sponsorship_disabled");
