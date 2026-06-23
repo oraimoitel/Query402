@@ -72,3 +72,27 @@ export interface AnalyticsSummary {
   recentTransactions: PaymentAttempt[];
   recentUsage: UsageEvent[];
 }
+
+export interface SponsorshipGrant {
+  grantId: string;
+  wallet: string;
+  network: string;
+  mode?: QueryMode;
+  providerId?: string;
+  maxAmountUsd: number;
+  expiresAt: string;
+  nonce: string;
+  issuedAt: string;
+}
+
+export interface SignedGrant {
+  grant: SponsorshipGrant;
+  signature: string;
+}
+
+export interface SponsorshipChallenge {
+  challengeId: string;
+  wallet: string;
+  message: string;
+  expiresAt: string;
+}

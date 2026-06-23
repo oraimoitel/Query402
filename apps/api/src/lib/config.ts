@@ -43,7 +43,15 @@ const envSchema = z.object({
   NEWS_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
   GROQ_MODEL: z.string().optional(),
-  DEMO_MODE: z.string().optional()
+  DEMO_MODE: z.string().optional(),
+  SPONSORSHIP_ENABLED: z.string().optional(),
+  SPONSORSHIP_SIGNING_SECRET: z.string().optional(),
+  SPONSORSHIP_GLOBAL_DAILY_BUDGET_USD: z.coerce.number().positive().default(10),
+  SPONSORSHIP_PER_WALLET_DAILY_BUDGET_USD: z.coerce.number().positive().default(1),
+  SPONSORSHIP_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  SPONSORSHIP_GRANT_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  SPONSORSHIP_CHALLENGE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
+  SPONSORSHIP_DB_PATH: z.string().min(1).default("apps/api/data/sponsorship.db")
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -59,5 +67,9 @@ export const config = {
     .map((origin) => normalizeOrigin(origin))
     .filter(Boolean),
   groqModel: parsed.data.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile",
-  demoMode: parsed.data.DEMO_MODE === "true"
+  demoMode: parsed.data.DEMO_MODE === "true",
+  sponsorshipEnabled: parsed.data.SPONSORSHIP_ENABLED === "true",
+  sponsorshipDbPath: path.isAbsolute(parsed.data.SPONSORSHIP_DB_PATH)
+    ? parsed.data.SPONSORSHIP_DB_PATH
+    : path.resolve(process.cwd(), parsed.data.SPONSORSHIP_DB_PATH)
 };
