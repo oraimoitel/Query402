@@ -2,6 +2,7 @@ import { getProviderById, providers } from "../lib/pricing.js";
 import { registry } from "../providers/index.js";
 import { nanoid } from "nanoid";
 import { QueryResult } from "@query402/shared";
+import { validateScrapeUrl } from "../lib/scrape-url-safety.js";
 
 export async function executeQuery(params: {
   mode: "search" | "news" | "scrape";
@@ -19,9 +20,11 @@ export async function executeQuery(params: {
     throw new Error(`Input required for mode ${params.mode}`);
   }
 
+  const safeInput = params.mode === "scrape" ? await validateScrapeUrl(queryOrUrl) : queryOrUrl;
+
   // Registry handles provider matching, circuit breaking, timeouts, and fallbacks
   const start = Date.now();
-  const execution = await registry.execute(params.mode, params.provider, queryOrUrl);
+  const execution = await registry.execute(params.mode, params.provider, safeInput);
   const latencyMs = Date.now() - start;
 
   return {
@@ -35,7 +38,7 @@ export async function executeQuery(params: {
     items: execution.items,
     source: execution.source,
     raw: {
-      queryOrUrl,
+      queryOrUrl: safeInput,
       adapterId: params.provider
     }
   };
