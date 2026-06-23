@@ -10,7 +10,11 @@ import {
   SponsorshipBudgetExceededError,
   SponsorshipNonceReplayError
 } from "../lib/sponsorship/budget.js";
-import { cacheIdempotencyResponse } from "../lib/sponsorship/idempotency.js";
+import {
+  acquireIdempotencyLock,
+  cacheIdempotencyResponse,
+  releaseIdempotencyLock
+} from "../lib/sponsorship/idempotency.js";
 import {
   authorizeSponsoredRun,
   buildSponsoredRunRequestHash
@@ -99,6 +103,26 @@ paidRouter.post("/api/paid/run", async (req, res, next) => {
     }
 
     const idempotencyKey = req.get("Idempotency-Key") ?? undefined;
+    const requestHash = JSON.stringify({
+      wallet: parsed.data.wallet,
+      mode: parsed.data.mode,
+      provider: parsed.data.provider
+    });
+
+    if (idempotencyKey) {
+      try {
+        const acquired = acquireIdempotencyLock(idempotencyKey, requestHash);
+        if (acquired.state === "cached") {
+          return res.status(acquired.statusCode).json(acquired.body);
+        }
+        if (acquired.state === "in_progress") {
+          return res.status(409).json({ error: "idempotency_in_progress" });
+        }
+      } catch {
+        return res.status(503).json({ error: "sponsorship_storage_unavailable" });
+      }
+    }
+
     const authorizeInput = {
       signedGrant,
       wallet: parsed.data.wallet,
@@ -154,11 +178,17 @@ paidRouter.post("/api/paid/run", async (req, res, next) => {
       });
     } catch (error) {
       releaseBudget(grant.wallet, quotedPriceUsd);
+      if (idempotencyKey) {
+        releaseIdempotencyLock(idempotencyKey);
+      }
       throw error;
     }
 
     if (!output.ok) {
       releaseBudget(grant.wallet, quotedPriceUsd);
+      if (idempotencyKey) {
+        releaseIdempotencyLock(idempotencyKey);
+      }
       return res.status(502).json({
         error: "Payment execution failed",
         status: output.status,

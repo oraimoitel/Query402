@@ -18,6 +18,10 @@ export function getDailyWindowStart(now = new Date()): string {
   return now.toISOString().slice(0, 10);
 }
 
+function exceedsBudgetLimit(spentUsd: number, amountUsd: number, limitUsd: number): boolean {
+  return Number((spentUsd + amountUsd).toFixed(6)) > Number(limitUsd.toFixed(6));
+}
+
 function readSpentUsd(
   database: Database.Database,
   scope: "global" | "wallet",
@@ -82,13 +86,13 @@ export function wouldExceedBudget(
   const database = getSponsorshipDb();
   const walletSpent = readSpentUsd(database, "wallet", wallet, windowStart);
 
-  if (walletSpent + amountUsd > config.SPONSORSHIP_PER_WALLET_DAILY_BUDGET_USD) {
+  if (exceedsBudgetLimit(walletSpent, amountUsd, config.SPONSORSHIP_PER_WALLET_DAILY_BUDGET_USD)) {
     return "wallet";
   }
 
   const globalSpent = readSpentUsd(database, "global", null, windowStart);
 
-  if (globalSpent + amountUsd > config.SPONSORSHIP_GLOBAL_DAILY_BUDGET_USD) {
+  if (exceedsBudgetLimit(globalSpent, amountUsd, config.SPONSORSHIP_GLOBAL_DAILY_BUDGET_USD)) {
     return "global";
   }
 
@@ -114,12 +118,12 @@ export function checkAndReserveBudget(input: {
     }
 
     const walletSpent = readSpentUsd(database, "wallet", input.wallet, windowStart);
-    if (walletSpent + input.amountUsd > config.SPONSORSHIP_PER_WALLET_DAILY_BUDGET_USD) {
+    if (exceedsBudgetLimit(walletSpent, input.amountUsd, config.SPONSORSHIP_PER_WALLET_DAILY_BUDGET_USD)) {
       throw new SponsorshipBudgetExceededError("wallet");
     }
 
     const globalSpent = readSpentUsd(database, "global", null, windowStart);
-    if (globalSpent + input.amountUsd > config.SPONSORSHIP_GLOBAL_DAILY_BUDGET_USD) {
+    if (exceedsBudgetLimit(globalSpent, input.amountUsd, config.SPONSORSHIP_GLOBAL_DAILY_BUDGET_USD)) {
       throw new SponsorshipBudgetExceededError("global");
     }
 

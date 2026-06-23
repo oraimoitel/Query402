@@ -2,7 +2,7 @@ import type { QueryMode, SignedGrant } from "@query402/shared";
 import { signedGrantSchema } from "@query402/shared";
 import { config } from "../config.js";
 import { getProviderById } from "../pricing.js";
-import { isNonceConsumed, wouldExceedBudget } from "./budget.js";
+import { wouldExceedBudget } from "./budget.js";
 import { verifyGrant } from "./grant.js";
 import { getCachedIdempotencyResponse } from "./idempotency.js";
 import { isSponsorshipStorageAvailable } from "./store.js";
@@ -60,18 +60,6 @@ function deny(
 /** Re-export for route handlers. */
 export { isSponsorshipStorageAvailable } from "./store.js";
 
-function checkNonceNotConsumed(nonce: string, grantId: string): PolicyResult | null {
-  try {
-    if (isNonceConsumed(nonce)) {
-      return deny("denied_nonce_replay", 409, "nonce_replay", { grantId });
-    }
-
-    return null;
-  } catch {
-    return deny("denied_storage_unavailable", 503, "sponsorship_storage_unavailable");
-  }
-}
-
 function checkBudget(wallet: string, amountUsd: number, grantId: string): PolicyResult | null {
   try {
     const exceeded = wouldExceedBudget(wallet, amountUsd);
@@ -125,9 +113,7 @@ function buildRequestHash(input: AuthorizeSponsoredRunInput): string {
   return JSON.stringify({
     wallet: input.wallet,
     mode: input.mode,
-    provider: input.provider,
-    grantId: input.signedGrant.grant.grantId,
-    nonce: input.signedGrant.grant.nonce
+    provider: input.provider
   });
 }
 
@@ -183,16 +169,6 @@ export function authorizeSponsoredRun(input: AuthorizeSponsoredRunInput): Policy
     return deny("denied_expired", 403, "grant_expired", { grantId: grant.grantId });
   }
 
-  const nonceResult = checkNonceNotConsumed(grant.nonce, grant.grantId);
-  if (nonceResult) {
-    return nonceResult;
-  }
-
-  const budgetResult = checkBudget(grant.wallet, provider.priceUsd, grant.grantId);
-  if (budgetResult) {
-    return budgetResult;
-  }
-
   const idempotencyResult = checkIdempotency(
     input.idempotencyKey,
     buildRequestHash(input),
@@ -200,6 +176,11 @@ export function authorizeSponsoredRun(input: AuthorizeSponsoredRunInput): Policy
   );
   if (idempotencyResult) {
     return idempotencyResult;
+  }
+
+  const budgetResult = checkBudget(grant.wallet, provider.priceUsd, grant.grantId);
+  if (budgetResult) {
+    return budgetResult;
   }
 
   return {
