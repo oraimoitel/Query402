@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { config } from "../lib/config.js";
 import { runPaidRequest } from "../lib/demo-client.js";
 
 const paidRunSchema = z.object({
@@ -13,6 +14,10 @@ export const paidRouter = Router();
 
 paidRouter.post("/api/paid/run", async (req, res, next) => {
   try {
+    if (!config.sponsorshipEnabled) {
+      return res.status(503).json({ error: "sponsorship_disabled" });
+    }
+
     const parsed = paidRunSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.flatten() });
