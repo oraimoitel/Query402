@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "test": "vitest run && node --import tsx --test src/providers/registry.test.ts src/lib/scrape-url-safety.test.ts src/services/query-service.test.ts",
+    "test:watch": "vitest",
     "lint": "echo 'No lint configured for api'",
     "format": "echo 'No format task configured for api'"
   },
@@ -21,6 +22,7 @@
     "@x402/express": "^2.9.0",
     "@x402/fetch": "^2.9.0",
     "@x402/stellar": "^2.9.0",
+    "better-sqlite3": "^11.9.1",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
@@ -30,10 +32,14 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^22.15.17",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.1",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }

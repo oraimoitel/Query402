@@ -1,6 +1,7 @@
 export type QueryMode = "search" | "news" | "scrape";
 export type ProviderCategory = QueryMode;
 export type SourceType = "live" | "deterministic-fallback" | "unavailable";
+export type PaymentSource = "sponsored" | "wallet" | "demo";
 
 export interface ProviderDefinition {
   id: string;
@@ -49,6 +50,10 @@ export interface UsageEvent {
   traceId: string;
   createdAt: string;
   latencyMs: number;
+  sponsorshipGrantId?: string;
+  policyDecision?: string;
+  paymentSource?: PaymentSource;
+  sponsorPublicKey?: string;
 }
 
 export interface PaymentAttempt {
@@ -64,6 +69,10 @@ export interface PaymentAttempt {
   transactionHash?: string;
   error?: string;
   createdAt: string;
+  sponsorshipGrantId?: string;
+  policyDecision?: string;
+  paymentSource?: PaymentSource;
+  sponsorPublicKey?: string;
 }
 
 export interface AnalyticsSummary {
@@ -72,4 +81,28 @@ export interface AnalyticsSummary {
   spendByCategory: Record<QueryMode, number>;
   recentTransactions: PaymentAttempt[];
   recentUsage: UsageEvent[];
+}
+
+export interface SponsorshipGrant {
+  grantId: string;
+  wallet: string;
+  network: string;
+  mode?: QueryMode;
+  providerId?: string;
+  maxAmountUsd: number;
+  expiresAt: string;
+  nonce: string;
+  issuedAt: string;
+}
+
+export interface SignedGrant {
+  grant: SponsorshipGrant;
+  signature: string;
+}
+
+export interface SponsorshipChallenge {
+  challengeId: string;
+  wallet: string;
+  message: string;
+  expiresAt: string;
 }
