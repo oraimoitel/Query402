@@ -2,7 +2,15 @@ import { Router, type Response } from "express";
 import { signedGrantSchema, type QueryResult, type SignedGrant } from "@query402/shared";
 import { z } from "zod";
 import { runPaidRequest } from "../lib/demo-client.js";
+import {
+  abortIdempotency,
+  beginIdempotency,
+  completeIdempotency,
+  respondIdempotencyGate
+} from "../lib/idempotency/route.js";
 import { persistSponsoredPayment } from "../lib/persistence.js";
+import { getProviderById } from "../lib/pricing.js";
+import { config } from "../lib/config.js";
 import {
   checkAndReserveBudget,
   commitBudget,
@@ -10,15 +18,7 @@ import {
   SponsorshipBudgetExceededError,
   SponsorshipNonceReplayError
 } from "../lib/sponsorship/budget.js";
-import {
-  acquireIdempotencyLock,
-  cacheIdempotencyResponse,
-  releaseIdempotencyLock
-} from "../lib/sponsorship/idempotency.js";
-import {
-  authorizeSponsoredRun,
-  buildSponsoredRunRequestHash
-} from "../lib/sponsorship/policy.js";
+import { authorizeSponsoredRun } from "../lib/sponsorship/policy.js";
 
 const stellarPublicKeySchema = z
   .string()
@@ -102,47 +102,45 @@ paidRouter.post("/api/paid/run", async (req, res, next) => {
       return res.status(403).json({ error: "invalid_grant" });
     }
 
-    const idempotencyKey = req.get("Idempotency-Key") ?? undefined;
-    const requestHash = JSON.stringify({
-      wallet: parsed.data.wallet,
-      mode: parsed.data.mode,
-      provider: parsed.data.provider
-    });
+    const catalogProvider = getProviderById(parsed.data.provider);
+    if (!catalogProvider || catalogProvider.category !== parsed.data.mode) {
+      return res.status(400).json({ error: "unknown_provider" });
+    }
 
-    if (idempotencyKey) {
-      try {
-        const acquired = acquireIdempotencyLock(idempotencyKey, requestHash);
-        if (acquired.state === "cached") {
-          return res.status(acquired.statusCode).json(acquired.body);
-        }
-        if (acquired.state === "in_progress") {
-          return res.status(409).json({ error: "idempotency_in_progress" });
-        }
-      } catch {
-        return res.status(503).json({ error: "sponsorship_storage_unavailable" });
-      }
+    const fingerprint = {
+      method: "POST" as const,
+      route: "/api/paid/run",
+      mode: parsed.data.mode,
+      provider: parsed.data.provider,
+      query: parsed.data.query,
+      url: parsed.data.url,
+      payer: parsed.data.wallet,
+      network: config.STELLAR_NETWORK,
+      quotedAmountUsd: catalogProvider.priceUsd
+    };
+
+    const idempotencyGate = beginIdempotency(req, fingerprint);
+    if (respondIdempotencyGate(res, idempotencyGate)) {
+      return;
     }
 
     const authorizeInput = {
       signedGrant,
       wallet: parsed.data.wallet,
       mode: parsed.data.mode,
-      provider: parsed.data.provider,
-      idempotencyKey
+      provider: parsed.data.provider
     };
 
     const policy = authorizeSponsoredRun(authorizeInput);
     if (!policy.allowed) {
+      abortIdempotency(req);
       return policyErrorResponse(res, policy);
-    }
-
-    if (policy.decision === "idempotency_hit" && policy.cachedResponse) {
-      return res.status(policy.cachedResponse.statusCode).json(policy.cachedResponse.body);
     }
 
     const { grant } = signedGrant;
     const quotedPriceUsd = policy.quotedPriceUsd;
     if (quotedPriceUsd === undefined) {
+      abortIdempotency(req);
       return res.status(503).json({ error: "sponsorship_storage_unavailable" });
     }
 
@@ -154,6 +152,7 @@ paidRouter.post("/api/paid/run", async (req, res, next) => {
         grantId: grant.grantId
       });
     } catch (error) {
+      abortIdempotency(req);
       if (error instanceof SponsorshipNonceReplayError) {
         return res.status(409).json({ error: "nonce_replay", grantId: grant.grantId });
       }
@@ -178,17 +177,13 @@ paidRouter.post("/api/paid/run", async (req, res, next) => {
       });
     } catch (error) {
       releaseBudget(grant.wallet, quotedPriceUsd);
-      if (idempotencyKey) {
-        releaseIdempotencyLock(idempotencyKey);
-      }
+      abortIdempotency(req);
       throw error;
     }
 
     if (!output.ok) {
       releaseBudget(grant.wallet, quotedPriceUsd);
-      if (idempotencyKey) {
-        releaseIdempotencyLock(idempotencyKey);
-      }
+      abortIdempotency(req);
       return res.status(502).json({
         error: "Payment execution failed",
         status: output.status,
@@ -219,19 +214,7 @@ paidRouter.post("/api/paid/run", async (req, res, next) => {
       policyDecision: policy.decision
     });
 
-    if (idempotencyKey) {
-      try {
-        cacheIdempotencyResponse(
-          idempotencyKey,
-          buildSponsoredRunRequestHash(authorizeInput),
-          200,
-          output.payload
-        );
-      } catch {
-        return res.status(503).json({ error: "sponsorship_storage_unavailable" });
-      }
-    }
-
+    completeIdempotency(req, fingerprint, 200, output.payload);
     return res.status(200).json(output.payload);
   } catch (error) {
     return next(error);
