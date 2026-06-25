@@ -43,8 +43,12 @@ export interface UsageEvent {
   queryOrUrl: string;
   priceUsd: number;
   network: string;
-  paymentStatus: "paid" | "failed" | "demo-paid";
+  paymentStatus: "verified" | "settled" | "failed" | "demo-paid";
+  paymentKind?: "demo" | "verified" | "settled" | "failed";
   paymentTxHash?: string;
+  asset?: string;
+  payToAddress?: string;
+  amount?: string;
   facilitatorUrl?: string;
   payerPublicKey?: string;
   traceId: string;
@@ -62,11 +66,15 @@ export interface PaymentAttempt {
   providerId: string;
   amountUsd: number;
   network: string;
+  asset?: string;
+  amount?: string;
+  evidenceKind?: "demo" | "verified" | "settled" | "failed";
   payerPublicKey?: string;
   payToAddress: string;
   facilitatorUrl: string;
-  status: "verified" | "settled" | "failed";
+  status: "demo-paid" | "verified" | "settled" | "failed";
   transactionHash?: string;
+  facilitatorResult?: Record<string, unknown>;
   error?: string;
   createdAt: string;
   sponsorshipGrantId?: string;
@@ -78,7 +86,12 @@ export interface PaymentAttempt {
 export interface AnalyticsSummary {
   totalQueries: number;
   totalSpendUsd: number;
+  settledSpendUsd: number;
+  demoSpendUsd: number;
+  failedSpendUsd: number;
   spendByCategory: Record<QueryMode, number>;
+  settledSpendByCategory: Record<QueryMode, number>;
+  demoSpendByCategory: Record<QueryMode, number>;
   recentTransactions: PaymentAttempt[];
   recentUsage: UsageEvent[];
 }

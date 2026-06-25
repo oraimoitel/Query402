@@ -57,12 +57,35 @@ export function getPaymentAttempts() {
 
 export function getAnalyticsSummary(): AnalyticsSummary {
   const db = readDb();
-  const spendByCategory: Record<"search" | "news" | "scrape", number> = db.usage.reduce(
-    (acc, event) => {
+  const emptySpendByCategory: Record<QueryMode, number> = { search: 0, news: 0, scrape: 0 };
+  const spendByCategory = db.usage.reduce<Record<QueryMode, number>>((acc, event) => {
+    acc[event.mode] += event.priceUsd;
+    return acc;
+  }, { ...emptySpendByCategory });
+
+  const settledSpendByCategory = db.usage.reduce<Record<QueryMode, number>>((acc, event) => {
+    if (event.paymentStatus === "settled") {
       acc[event.mode] += event.priceUsd;
-      return acc;
-    },
-    { search: 0, news: 0, scrape: 0 }
+    }
+    return acc;
+  }, { ...emptySpendByCategory });
+
+  const demoSpendByCategory = db.usage.reduce<Record<QueryMode, number>>((acc, event) => {
+    if (event.paymentStatus === "demo-paid") {
+      acc[event.mode] += event.priceUsd;
+    }
+    return acc;
+  }, { ...emptySpendByCategory });
+
+  const settledSpendUsd = Number(
+    Object.values(settledSpendByCategory).reduce((sum, value) => sum + value, 0).toFixed(6)
+  );
+  const demoSpendUsd = Number(Object.values(demoSpendByCategory).reduce((sum, value) => sum + value, 0).toFixed(6));
+  const failedSpendUsd = Number(
+    db.usage
+      .filter(event => event.paymentStatus === "failed")
+      .reduce((sum, event) => sum + event.priceUsd, 0)
+      .toFixed(6)
   );
 
   const totalSpendUsd = Number((spendByCategory.search + spendByCategory.news + spendByCategory.scrape).toFixed(6));
@@ -70,7 +93,12 @@ export function getAnalyticsSummary(): AnalyticsSummary {
   return {
     totalQueries: db.usage.length,
     totalSpendUsd,
+    settledSpendUsd,
+    demoSpendUsd,
+    failedSpendUsd,
     spendByCategory,
+    settledSpendByCategory,
+    demoSpendByCategory,
     recentTransactions: db.payments.slice(0, 10),
     recentUsage: db.usage.slice(0, 10)
   };
@@ -122,7 +150,7 @@ export function persistSponsoredPayment(input: {
     queryOrUrl: input.queryOrUrl,
     priceUsd: input.priceUsd,
     network: config.STELLAR_NETWORK,
-    paymentStatus: "paid",
+    paymentStatus: "settled",
     paymentTxHash: input.paymentResponseHeader ?? undefined,
     facilitatorUrl: config.X402_FACILITATOR_URL,
     payerPublicKey: input.walletPublicKey,
