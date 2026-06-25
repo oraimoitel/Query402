@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && node --import tsx --test src/providers/registry.test.ts src/lib/scrape-url-safety.test.ts src/services/query-service.test.ts",
     "test:watch": "vitest",
     "lint": "echo 'No lint configured for api'",
     "format": "echo 'No format task configured for api'"

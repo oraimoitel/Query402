@@ -5,6 +5,11 @@ export default defineConfig({
     environment: "node",
     pool: "forks",
     fileParallelism: false,
-    include: ["src/**/*.test.ts"]
+    include: ["src/**/*.test.ts"],
+    exclude: [
+      "src/providers/registry.test.ts",
+      "src/lib/scrape-url-safety.test.ts",
+      "src/services/query-service.test.ts"
+    ]
   }
 });

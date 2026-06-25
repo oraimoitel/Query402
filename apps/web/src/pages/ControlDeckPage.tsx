@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ProviderDefinition, QueryMode } from "@query402/shared";
 import { Activity, CircleDollarSign, Gauge, Home, Radar, ReceiptText, Sparkles, TerminalSquare } from "lucide-react";
 import { Link } from "react-router-dom";
-import { requestAccess } from "@stellar/freighter-api";
 import type { AnalyticsResponse, PaidQueryResponse } from "../types.js";
 import { API_BASE_URL, fetchJson, money } from "../lib/api.js";
 import { fetchSponsorshipEnabled, runSponsoredPaidQuery } from "../lib/sponsorship.js";
 import { runWalletPaidQuery } from "../lib/x402.js";
+import { WalletSessionMachine, FreighterAdapter, type WalletState } from "../lib/wallet/index.js";
 
 const modeLabels: Record<QueryMode, string> = {
   search: "Search",
@@ -31,7 +31,17 @@ function toTokenBaseUnits(amountUsd: number) {
 export default function ControlDeckPage() {
   const [mode, setMode] = useState<QueryMode>("search");
   const [paymentMode, setPaymentMode] = useState<"wallet" | "sponsored">("wallet");
-  const [connectedWalletAddress, setConnectedWalletAddress] = useState("");
+  const [walletState, setWalletState] = useState<WalletState>({ status: "disconnected" });
+  
+  const walletMachine = useMemo(() => {
+    const machine = new WalletSessionMachine("Test SDF Network ; September 2015");
+    machine.setAdapter(new FreighterAdapter());
+    return machine;
+  }, []);
+
+  useEffect(() => {
+    return walletMachine.subscribe(setWalletState);
+  }, [walletMachine]);
   const [queryInput, setQueryInput] = useState("latest stellar x402 updates");
   const [urlInput, setUrlInput] = useState("https://developers.stellar.org");
   const [providers, setProviders] = useState<ProviderDefinition[]>([]);
@@ -53,7 +63,7 @@ export default function ControlDeckPage() {
   );
 
   const activeInput = mode === "scrape" ? urlInput : queryInput;
-  const walletConnected = connectedWalletAddress.length > 0;
+  const walletConnected = walletState.status === "connected";
   const estimatedTokenAmount = selectedProviderDetails?.priceUsd.toFixed(TOKEN_DECIMALS) ?? "0.0000000";
   const estimatedTokenBaseUnits = selectedProviderDetails ? toTokenBaseUnits(selectedProviderDetails.priceUsd) : "0";
 
@@ -65,18 +75,17 @@ export default function ControlDeckPage() {
   }
 
   async function connectWallet() {
-    const result = await requestAccess();
-    if (result.error || !result.address) {
-      throw new Error(result.error ? JSON.stringify(result.error) : "Freighter wallet connection failed");
-    }
-
-    setConnectedWalletAddress(result.address);
     setError(null);
+    try {
+      await walletMachine.connect();
+    } catch (e: any) {
+      setError(e.message);
+    }
   }
 
   function disconnectWallet() {
-    setConnectedWalletAddress("");
     setError(null);
+    walletMachine.disconnect();
   }
 
   async function refreshMetrics() {
@@ -125,6 +134,10 @@ export default function ControlDeckPage() {
     setError(null);
 
     try {
+      if (paymentMode === "sponsored" && !walletState.address) {
+        throw new Error("Connect wallet before running a sponsored query");
+      }
+
       const data =
         paymentMode === "wallet"
           ? await runWalletPaidQuery({
@@ -133,7 +146,7 @@ export default function ControlDeckPage() {
               provider: selectedProvider,
               query: mode === "scrape" ? undefined : queryInput,
               url: mode === "scrape" ? urlInput : undefined,
-              walletAddress: connectedWalletAddress
+              wallet: walletMachine
             })
           : await runSponsoredPaidQuery({
               apiBaseUrl: API_BASE_URL,
@@ -141,7 +154,7 @@ export default function ControlDeckPage() {
               provider: selectedProvider,
               query: mode === "scrape" ? undefined : queryInput,
               url: mode === "scrape" ? urlInput : undefined,
-              walletAddress: connectedWalletAddress
+              walletAddress: walletState.address!
             });
 
       setResult(data);
@@ -149,8 +162,12 @@ export default function ControlDeckPage() {
     } catch (runError) {
       if (runError instanceof Error) {
         setError(runError.message);
-      } else {
-        setError("Query failed");
+        if (runError.message.toLowerCase().includes("reject")) {
+           // Normalize rejection
+           setError("Transaction rejected by user");
+        } else {
+           setError("Query failed");
+        }
       }
     } finally {
       setIsLoading(false);
@@ -180,20 +197,16 @@ export default function ControlDeckPage() {
               <button
                 type="button"
                 className="wallet-btn"
-                onClick={() => {
-                  connectWallet().catch((walletError) => {
-                    setError(walletError instanceof Error ? walletError.message : "Wallet connection failed");
-                  });
-                }}
-                disabled={walletConnected}
+                onClick={connectWallet}
+                disabled={walletConnected || walletState.status === "connecting"}
               >
-                Connect Wallet
+                {walletState.status === "connecting" ? "Connecting..." : "Connect Wallet"}
               </button>
               <button type="button" className="wallet-btn ghost" onClick={disconnectWallet} disabled={!walletConnected}>
                 Disconnect
               </button>
               <span className={walletConnected ? "wallet-status connected" : "wallet-status"}>
-                {walletConnected ? `Connected: ${shortAddress(connectedWalletAddress)}` : "Not connected"}
+                {walletConnected ? `Connected: ${shortAddress(walletState.address!)}` : walletState.status}
               </span>
             </div>
           </div>
@@ -273,26 +286,31 @@ export default function ControlDeckPage() {
                   <span>{money(provider.priceUsd)}</span>
                   <span>{provider.latencyEstimateMs}ms</span>
                   <span>Q{provider.qualityScore}</span>
+                  <span className={`source-badge ${provider.sourceType}`}>{provider.sourceType}</span>
                 </div>
               </button>
             ))}
           </div>
 
-          <div className="action-row">
+          <div className="action-row preflight">
             <div>
               <p className="action-label">Provider lock</p>
               <p className="action-value">{selectedProviderDetails?.name ?? "Choose provider"}</p>
               <p className="action-label">Mode: {paymentMode === "sponsored" ? "Sponsored" : "Wallet"}</p>
-              <p className="action-label">
-                Estimated on-chain: {estimatedTokenAmount} {TOKEN_SYMBOL} ({estimatedTokenBaseUnits} base units)
-              </p>
             </div>
-            <button className="run-btn" onClick={runPaidQuery} disabled={isLoading || !selectedProvider || !walletConnected} type="button">
-              {isLoading ? "Executing..." : "Run paid query"}
+            <div className="preflight-details">
+              <p className="action-label">Network: <strong>{walletState.network ?? 'Test SDF Network ; September 2015'}</strong></p>
+              <p className="action-label">Asset: <strong>{TOKEN_SYMBOL}</strong></p>
+              <p className="action-label">Amount: <strong>{estimatedTokenAmount}</strong> ({estimatedTokenBaseUnits} base units)</p>
+              <p className="action-label">Pay-to: <strong>dynamic via x402</strong></p>
+            </div>
+            <button className="run-btn" onClick={runPaidQuery} disabled={isLoading || walletState.status === "signing" || !selectedProvider || !walletConnected} type="button">
+              {isLoading || walletState.status === "signing" ? "Executing..." : "Run paid query"}
               <TerminalSquare size={16} />
             </button>
           </div>
 
+          {walletState.error && <p className="error-box">Wallet Error: {walletState.error}</p>}
           {error ? <p className="error-box">{error}</p> : null}
 
           <div className="result-zone sweep">
@@ -310,6 +328,7 @@ export default function ControlDeckPage() {
                   <span>{money(result.result.priceUsd)}</span>
                   <span>{result.result.latencyMs}ms</span>
                   <span>{result.result.traceId.slice(0, 12)}</span>
+                  <span className={`source-badge ${result.result.source}`}>Source: {result.result.source}</span>
                 </div>
 
                 <div className="trace-box">

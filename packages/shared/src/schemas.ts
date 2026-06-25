@@ -12,7 +12,7 @@ export const providerSchema = z.object({
   description: z.string().min(1),
   latencyEstimateMs: z.number().int().positive(),
   qualityScore: z.number().min(1).max(100),
-  sourceType: z.enum(["mock", "real"]),
+  sourceType: z.enum(["live", "deterministic-fallback", "unavailable"]),
   enabled: z.boolean()
 });
 

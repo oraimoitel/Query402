@@ -1,6 +1,5 @@
-import { nanoid } from "nanoid";
-import type { ProviderResultItem, QueryResult } from "@query402/shared";
-import { getProviderById } from "../lib/pricing.js";
+import { ProviderResultItem } from "@query402/shared";
+import { ProviderAdapter } from "./core.js";
 import { fetchGroqItems } from "../lib/groq.js";
 
 function buildNewsItems(query: string): ProviderResultItem[] {
@@ -26,40 +25,22 @@ function buildNewsItems(query: string): ProviderResultItem[] {
   ];
 }
 
-export async function runNewsProvider(query: string, providerId: string): Promise<QueryResult> {
-  const provider = getProviderById(providerId);
-  if (!provider || provider.category !== "news") {
-    throw new Error(`Unknown news provider: ${providerId}`);
+export class NewsAdapter implements ProviderAdapter {
+  constructor(public id: string) {}
+
+  async isHealthy(): Promise<boolean> {
+    return true;
   }
 
-  const latencyMs = Math.max(180, provider.latencyEstimateMs - 90 + Math.floor(Math.random() * 350));
-  await new Promise((resolve) => setTimeout(resolve, Math.min(2000, latencyMs)));
-
-  let items = buildNewsItems(query);
-  let source = provider.sourceType;
-  try {
+  async execute(query: string): Promise<ProviderResultItem[]> {
     const groqItems = await fetchGroqItems("news", query);
-    if (groqItems && groqItems.length > 0) {
-      items = groqItems;
-      source = "real";
+    if (!groqItems || groqItems.length === 0) {
+      throw new Error("No items returned from news provider");
     }
-  } catch {
-    source = provider.sourceType;
+    return groqItems;
   }
 
-  return {
-    mode: "news",
-    providerId: provider.id,
-    providerName: provider.name,
-    priceUsd: provider.priceUsd,
-    latencyMs,
-    timestamp: new Date().toISOString(),
-    traceId: `trace_${nanoid(12)}`,
-    items,
-    raw: {
-      source,
-      query,
-      freshnessWindow: provider.id.includes("deep") ? "72h contextual" : "12h fast"
-    }
-  };
+  getFallback(query: string): ProviderResultItem[] {
+    return buildNewsItems(query);
+  }
 }
