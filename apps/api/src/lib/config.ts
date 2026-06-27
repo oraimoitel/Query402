@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
+import { resolveApiDataPath } from "./storage/paths.js";
 
 function normalizeOrigin(origin: string) {
   return origin.trim().replace(/\/+$/, "").toLowerCase();
@@ -51,7 +52,9 @@ const envSchema = z.object({
   SPONSORSHIP_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
   SPONSORSHIP_GRANT_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   SPONSORSHIP_CHALLENGE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
-  SPONSORSHIP_DB_PATH: z.string().min(1).default("apps/api/data/sponsorship.db")
+  SPONSORSHIP_DB_PATH: z.string().min(1).default("data/sponsorship.db"),
+  ANALYTICS_DB_PATH: z.string().min(1).default("data/analytics.db"),
+  ANALYTICS_STORAGE: z.enum(["sqlite", "memory"]).default("sqlite")
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -69,7 +72,7 @@ export const config = {
   groqModel: parsed.data.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile",
   demoMode: parsed.data.DEMO_MODE === "true",
   sponsorshipEnabled: parsed.data.SPONSORSHIP_ENABLED === "true",
-  sponsorshipDbPath: path.isAbsolute(parsed.data.SPONSORSHIP_DB_PATH)
-    ? parsed.data.SPONSORSHIP_DB_PATH
-    : path.resolve(process.cwd(), parsed.data.SPONSORSHIP_DB_PATH)
+  sponsorshipDbPath: resolveApiDataPath(parsed.data.SPONSORSHIP_DB_PATH),
+  analyticsDbPath: resolveApiDataPath(parsed.data.ANALYTICS_DB_PATH),
+  analyticsStorage: parsed.data.ANALYTICS_STORAGE
 };
