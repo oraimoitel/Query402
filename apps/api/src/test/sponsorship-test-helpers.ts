@@ -20,6 +20,7 @@ export function applySponsorshipTestEnv(overrides: Record<string, string> = {}) 
     SPONSORSHIP_GRANT_TTL_SECONDS: "300",
     SPONSORSHIP_CHALLENGE_TTL_SECONDS: "60",
     SPONSORSHIP_DB_PATH: dbPath,
+    IDEMPOTENCY_TTL_SECONDS: "86400",
     ...overrides
   };
 

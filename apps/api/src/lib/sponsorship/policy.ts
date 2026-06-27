@@ -4,7 +4,6 @@ import { config } from "../config.js";
 import { getProviderById } from "../pricing.js";
 import { wouldExceedBudget } from "./budget.js";
 import { verifyGrant } from "./grant.js";
-import { getCachedIdempotencyResponse } from "./idempotency.js";
 import { isSponsorshipStorageAvailable } from "./store.js";
 
 export type PolicyDecision =
@@ -18,8 +17,7 @@ export type PolicyDecision =
   | "denied_price_exceeded"
   | "denied_expired"
   | "denied_nonce_replay"
-  | "denied_budget_exceeded"
-  | "idempotency_hit";
+  | "denied_budget_exceeded";
 
 export interface PolicyResult {
   allowed: boolean;
@@ -28,10 +26,6 @@ export interface PolicyResult {
   error?: string;
   grantId?: string;
   quotedPriceUsd?: number;
-  cachedResponse?: {
-    statusCode: number;
-    body: unknown;
-  };
 }
 
 export interface AuthorizeSponsoredRunInput {
@@ -39,7 +33,6 @@ export interface AuthorizeSponsoredRunInput {
   wallet: string;
   mode: QueryMode;
   provider: string;
-  idempotencyKey?: string;
 }
 
 function deny(
@@ -72,53 +65,6 @@ function checkBudget(wallet: string, amountUsd: number, grantId: string): Policy
   } catch {
     return deny("denied_storage_unavailable", 503, "sponsorship_storage_unavailable");
   }
-}
-
-function checkIdempotency(
-  idempotencyKey: string | undefined,
-  requestHash: string,
-  grantId: string
-): PolicyResult | null {
-  if (!idempotencyKey) {
-    return null;
-  }
-
-  try {
-    const cached = getCachedIdempotencyResponse(idempotencyKey, requestHash);
-
-    if (cached.hit) {
-      return {
-        allowed: true,
-        statusCode: cached.statusCode,
-        decision: "idempotency_hit",
-        grantId,
-        cachedResponse: {
-          statusCode: cached.statusCode,
-          body: cached.body
-        }
-      };
-    }
-
-    if (cached.conflict) {
-      return deny("denied_invalid_grant", 409, "idempotency_key_conflict", { grantId });
-    }
-
-    return null;
-  } catch {
-    return deny("denied_storage_unavailable", 503, "sponsorship_storage_unavailable");
-  }
-}
-
-function buildRequestHash(input: AuthorizeSponsoredRunInput): string {
-  return JSON.stringify({
-    wallet: input.wallet,
-    mode: input.mode,
-    provider: input.provider
-  });
-}
-
-export function buildSponsoredRunRequestHash(input: AuthorizeSponsoredRunInput): string {
-  return buildRequestHash(input);
 }
 
 export function authorizeSponsoredRun(input: AuthorizeSponsoredRunInput): PolicyResult {
@@ -167,15 +113,6 @@ export function authorizeSponsoredRun(input: AuthorizeSponsoredRunInput): Policy
 
   if (new Date(grant.expiresAt).getTime() <= Date.now()) {
     return deny("denied_expired", 403, "grant_expired", { grantId: grant.grantId });
-  }
-
-  const idempotencyResult = checkIdempotency(
-    input.idempotencyKey,
-    buildRequestHash(input),
-    grant.grantId
-  );
-  if (idempotencyResult) {
-    return idempotencyResult;
   }
 
   const budgetResult = checkBudget(grant.wallet, provider.priceUsd, grant.grantId);
