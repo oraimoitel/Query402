@@ -37,8 +37,11 @@ Query402/
 │  │  │  ├─ x402.ts
 │  │  │  ├─ stellar.ts
 │  │  │  ├─ pricing.ts
-│  │  │  └─ persistence.ts
-│  │  └─ data/db.json
+│  │  │  ├─ persistence.ts
+│  │  │  └─ storage/          # SQLite + in-memory adapters
+│  │  └─ data/
+│  │     ├─ analytics.db
+│  │     └─ sponsorship.db
 │  ├─ web/
 │  │  └─ src/
 │  │     ├─ App.tsx
@@ -65,7 +68,7 @@ Query402/
 2. Web calls API catalog + paid route on `apps/api`.
 3. Paid route is gated by x402 middleware (`src/lib/x402.ts`).
 4. On payment success, provider service executes and returns structured payload.
-5. API logs usage/payment metadata in `data/db.json`.
+5. API logs usage/payment metadata in `data/analytics.db` (atomic SQLite write).
 6. Web refreshes `/api/usage` and `/api/analytics` widgets.
 
 ### B. CLI-driven query flow
@@ -119,10 +122,12 @@ Pricing and execution behavior:
 
 ## 6) Persistence and analytics
 
-Storage model (hackathon-first):
+Storage model:
 
-- JSON persistence in `apps/api/data/db.json`
-- tracks usage events, payment attempts, and metadata
+- **SQLite** analytics DB (`apps/api/data/analytics.db`) — usage events, payment attempts, idempotency
+- **SQLite** sponsorship DB (`apps/api/data/sponsorship.db`) — budget, nonce, sponsorship idempotency
+- Typed `StorageRepository` adapter with atomic payment+usage writes
+- See [docs/analytics-storage.md](./docs/analytics-storage.md) for backup, migration, and local dev
 
 Analytics endpoints:
 
@@ -142,13 +147,12 @@ This dual-path strategy keeps the demo resilient while preserving real-payment c
 
 Current MVP trade-offs:
 
-- JSON persistence instead of SQL for speed and clarity.
+- SQLite persistence with bounded retention (500 records per table).
 - AI-first provider generation with deterministic fallback for demo stability.
 - No user auth (out of scope for hackathon focus).
 
 Natural next steps:
 
-- Add SQLite + richer analytics queries
 - Expand real provider adapters
 - Add integration tests for facilitator/network checks
 - Add optional browser wallet UX (while retaining demo mode)

@@ -5,7 +5,7 @@ import type { PaymentPayload, PaymentRequirements, SettleResponse, VerifyRespons
 import type { HTTPRequestContext } from "@x402/core/server";
 import { config } from "./config.js";
 import { getProviderById } from "./pricing.js";
-import { savePaymentAttempt, saveUsageEvent } from "./persistence.js";
+import { persistPaymentAndUsage, savePaymentAttempt } from "./persistence.js";
 
 export type PaymentEvidence =
   | DemoPaymentEvidence
@@ -319,7 +319,7 @@ function toJsonRecord(value: unknown): Record<string, unknown> | undefined {
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
 }
 
-export function persistPaymentEvidence(evidence: PaymentEvidence, record?: PaidRequestRecord) {
+export async function persistPaymentEvidence(evidence: PaymentEvidence, record?: PaidRequestRecord) {
   assertPriceMatchesProvider(evidence);
   const now = new Date().toISOString();
   const payment: PaymentAttempt = {
@@ -340,8 +340,6 @@ export function persistPaymentEvidence(evidence: PaymentEvidence, record?: PaidR
     error: evidence.kind === "failed" ? evidence.error : undefined,
     createdAt: now
   };
-
-  savePaymentAttempt(payment);
 
   if (record) {
     const usage: UsageEvent = {
@@ -365,8 +363,11 @@ export function persistPaymentEvidence(evidence: PaymentEvidence, record?: PaidR
       latencyMs: record.latencyMs
     };
 
-    saveUsageEvent(usage);
+    await persistPaymentAndUsage({ payment, usage });
+    return;
   }
+
+  await savePaymentAttempt(payment);
 }
 
 export function paymentEvidenceSummary(evidence: PaymentEvidence) {

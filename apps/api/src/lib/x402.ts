@@ -126,7 +126,7 @@ export function createX402Middleware() {
         failure: settleResult.errorReason ?? settleResult.errorMessage ?? "settlement_failed"
       });
       setPaymentEvidence(req, evidence);
-      persistPaymentEvidence(evidence, getPaidRequestRecord(req));
+      await persistPaymentEvidence(evidence, getPaidRequestRecord(req));
       (req as EvidenceRequest).paymentEvidencePersisted = true;
     }
 
@@ -191,7 +191,7 @@ export function createX402Middleware() {
         settleResult: context.result
       });
       setPaymentEvidence(req, evidence);
-      persistPaymentEvidence(evidence, getPaidRequestRecord(req));
+      await persistPaymentEvidence(evidence, getPaidRequestRecord(req));
       (req as EvidenceRequest).paymentEvidencePersisted = true;
     });
 

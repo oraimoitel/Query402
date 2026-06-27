@@ -29,7 +29,7 @@ Query402 is a hackathon-ready marketplace-style router where agents can buy `sea
 - Express API with provider catalog and protected paid routes.
 - Provider abstraction for `search`, `news`, `scrape`.
 - Configurable per-request pricing.
-- Usage + payment persistence in JSON (`apps/api/data/db.json`).
+- Usage + payment persistence in SQLite (`apps/api/data/analytics.db`) via atomic storage adapter.
 - Analytics endpoint for total spend and category breakdown.
 - Agent CLI with commands for search/news/scrape.
 - Deterministic `DEMO_MODE` fallback for hackathon reliability.
@@ -268,7 +268,6 @@ Expected proof during demo:
 
 - Add citation/link verification and stricter source quality filters for AI-generated results.
 - Add richer payment metadata parsing from payment headers.
-- Add SQLite persistence for more advanced analytics queries.
 - Add integration tests with a reachable facilitator in CI.
 
 ## Submission packaging

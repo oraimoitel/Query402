@@ -17,10 +17,10 @@ import {
 import { getResponseByPaymentProof, savePaymentProofResponse } from "./service.js";
 import { getProviderById } from "../pricing.js";
 
-function persistDemoEvidenceIfNeeded(input: { req: Request; record: PaidRequestRecord }) {
+async function persistDemoEvidenceIfNeeded(input: { req: Request; record: PaidRequestRecord }) {
   const evidence = getPaymentEvidence(input.req);
   if (evidence?.kind === "demo") {
-    persistPaymentEvidence(evidence, input.record);
+    await persistPaymentEvidence(evidence, input.record);
   }
 }
 
@@ -114,7 +114,7 @@ export async function handlePaidX402Route(
     };
 
     setPaidRequestRecord(req, record);
-    persistDemoEvidenceIfNeeded({ req, record });
+    await persistDemoEvidenceIfNeeded({ req, record });
 
     const body = buildPaidResponse(req, result);
 

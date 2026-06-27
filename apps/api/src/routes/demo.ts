@@ -200,7 +200,7 @@ paidRouter.post("/api/paid/run", async (req, res, next) => {
     };
     const result = payload.result;
 
-    persistSponsoredPayment({
+    await persistSponsoredPayment({
       mode: parsed.data.mode,
       endpoint: output.endpoint,
       provider: parsed.data.provider,
