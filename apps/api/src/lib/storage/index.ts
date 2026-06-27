@@ -1,11 +1,24 @@
+import { config } from "../config.js";
 import type { StorageRepository } from "./types.js";
 import { createInMemoryStorageRepository } from "./memory.js";
+import { createSqliteStorageRepository } from "./sqlite/repository.js";
+import { closeAnalyticsDb } from "./sqlite/store.js";
 
 export type { StorageRepository } from "./types.js";
 export { createInMemoryStorageRepository } from "./memory.js";
+export { createSqliteStorageRepository } from "./sqlite/repository.js";
 export { resolveApiDataPath } from "./paths.js";
+export { closeAnalyticsDb } from "./sqlite/store.js";
 
 let repository: StorageRepository | null = null;
+
+function createDefaultRepository(): StorageRepository {
+  if (config.analyticsStorage === "memory") {
+    return createInMemoryStorageRepository();
+  }
+
+  return createSqliteStorageRepository(config.analyticsDbPath);
+}
 
 export function setStorageRepository(next: StorageRepository | null): void {
   if (repository) {
@@ -16,7 +29,7 @@ export function setStorageRepository(next: StorageRepository | null): void {
 
 export function getStorageRepository(): StorageRepository {
   if (!repository) {
-    repository = createInMemoryStorageRepository();
+    repository = createDefaultRepository();
   }
 
   return repository;
@@ -34,5 +47,7 @@ export function closeStorageRepository(): void {
   if (repository) {
     repository.close();
     repository = null;
+  } else {
+    closeAnalyticsDb();
   }
 }

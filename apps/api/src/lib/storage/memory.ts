@@ -1,9 +1,9 @@
-import type { AnalyticsSummary, PaymentAttempt, QueryMode, UsageEvent } from "@query402/shared";
+import type { AnalyticsSummary, PaymentAttempt, UsageEvent } from "@query402/shared";
 import {
-  DEFAULT_RECENT_LIMIT,
   MAX_PAYMENT_ATTEMPTS,
   MAX_USAGE_EVENTS
 } from "./constants.js";
+import { buildAnalyticsSummary } from "./serialization.js";
 import type {
   AnalyticsQueryOptions,
   IdempotencyAcquireResult,
@@ -16,35 +16,6 @@ const PENDING_STATUS_CODE = 0;
 
 function trimNewest<T>(items: T[], max: number): T[] {
   return items.slice(0, max);
-}
-
-function buildAnalyticsSummary(
-  usage: UsageEvent[],
-  payments: PaymentAttempt[],
-  options?: AnalyticsQueryOptions
-): AnalyticsSummary {
-  const spendByCategory = usage.reduce<Record<QueryMode, number>>(
-    (acc, event) => {
-      acc[event.mode] += event.priceUsd;
-      return acc;
-    },
-    { search: 0, news: 0, scrape: 0 }
-  );
-
-  const totalSpendUsd = Number(
-    (spendByCategory.search + spendByCategory.news + spendByCategory.scrape).toFixed(6)
-  );
-
-  const recentUsageLimit = options?.recentUsageLimit ?? DEFAULT_RECENT_LIMIT;
-  const recentPaymentLimit = options?.recentPaymentLimit ?? DEFAULT_RECENT_LIMIT;
-
-  return {
-    totalQueries: usage.length,
-    totalSpendUsd,
-    spendByCategory,
-    recentTransactions: payments.slice(0, recentPaymentLimit),
-    recentUsage: usage.slice(0, recentUsageLimit)
-  };
 }
 
 export class InMemoryStorageRepository implements StorageRepository {
