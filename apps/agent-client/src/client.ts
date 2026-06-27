@@ -6,11 +6,12 @@ import { nanoid } from "nanoid";
 import { config } from "./config.js";
 import { buildPaidClientRequestKey, getIdempotencyKey } from "./idempotency.js";
 
-export async function runPaidQuery(input: {
+export function buildPaidQueryEndpoint(input: {
   mode: "search" | "news" | "scrape";
   provider: string;
   query?: string;
   url?: string;
+  apiBaseUrl?: string;
 }) {
   const params = new URLSearchParams({ provider: input.provider });
 
@@ -26,7 +27,17 @@ export async function runPaidQuery(input: {
     params.set("q", input.query);
   }
 
-  const endpoint = `${config.API_BASE_URL}/x402/${input.mode}?${params.toString()}`;
+  const baseUrl = input.apiBaseUrl ?? config.API_BASE_URL;
+  return `${baseUrl}/x402/${input.mode}?${params.toString()}`;
+}
+
+export async function runPaidQuery(input: {
+  mode: "search" | "news" | "scrape";
+  provider: string;
+  query?: string;
+  url?: string;
+}) {
+  const endpoint = buildPaidQueryEndpoint(input);
   const idempotencyKey = getIdempotencyKey(
     buildPaidClientRequestKey({
       route: `/x402/${input.mode}`,

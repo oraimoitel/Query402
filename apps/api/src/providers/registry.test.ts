@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert";
+import { describe, it, expect } from "vitest";
 import { DefaultProviderRegistry } from "./registry.js";
 import { ProviderAdapter } from "./core.js";
 
@@ -43,7 +42,7 @@ class MockAdapter implements ProviderAdapter {
   async execute(queryOrUrl: string) {
     this.callCount++;
     if (this.executionDelay > 0) {
-      await new Promise(r => setTimeout(r, this.executionDelay));
+      await new Promise((r) => setTimeout(r, this.executionDelay));
     }
     if (!this.executeSuccess) {
       throw new Error("Execution failed");
@@ -59,16 +58,14 @@ class MockAdapter implements ProviderAdapter {
 describe("ProviderRegistry", () => {
   it("rejects unknown providers", async () => {
     const registry = new DefaultProviderRegistry();
-    await assert.rejects(
-      registry.execute("search", "unknown.provider", "q"),
+    await expect(registry.execute("search", "unknown.provider", "q")).rejects.toThrow(
       /Provider not found or disabled/
     );
   });
 
   it("rejects category mismatch", async () => {
     const registry = new DefaultProviderRegistry();
-    await assert.rejects(
-      registry.execute("news", "test.search.live", "q"),
+    await expect(registry.execute("news", "test.search.live", "q")).rejects.toThrow(
       /Provider test.search.live does not support mode news/
     );
   });
@@ -79,8 +76,8 @@ describe("ProviderRegistry", () => {
     registry.register(adapter);
 
     const result = await registry.execute("search", "test.search.live", "test-query");
-    assert.strictEqual(result.source, "live");
-    assert.strictEqual(result.items[0].title, "Live Result for test-query");
+    expect(result.source).toBe("live");
+    expect(result.items[0].title).toBe("Live Result for test-query");
   });
 
   it("falls back to deterministic data if deterministic provider", async () => {
@@ -89,8 +86,8 @@ describe("ProviderRegistry", () => {
     registry.register(adapter);
 
     const result = await registry.execute("search", "test.search.deterministic", "test-query");
-    assert.strictEqual(result.source, "deterministic-fallback");
-    assert.strictEqual(result.items[0].title, "Fallback Result for test-query");
+    expect(result.source).toBe("deterministic-fallback");
+    expect(result.items[0].title).toBe("Fallback Result for test-query");
   });
 
   it("falls back gracefully when unhealthy", async () => {
@@ -100,38 +97,32 @@ describe("ProviderRegistry", () => {
     registry.register(adapter);
 
     const result = await registry.execute("search", "test.search.live", "test-query");
-    assert.strictEqual(result.source, "deterministic-fallback");
-    assert.strictEqual(result.items[0].title, "Fallback Result for test-query");
-    assert.strictEqual(adapter.callCount, 0, "Should not call execute if unhealthy");
+    expect(result.source).toBe("deterministic-fallback");
+    expect(result.items[0].title).toBe("Fallback Result for test-query");
+    expect(adapter.callCount).toBe(0);
   });
 
   it("trips circuit breaker and recovers", async () => {
-    // Testing the actual registry logic directly
-    // Instead of messing with timing, we can trigger 3 failures
     const registry = new DefaultProviderRegistry();
     const adapter = new MockAdapter("test.search.live");
     registry.register(adapter);
 
     adapter.executeSuccess = false;
 
-    // 1st failure
     let res = await registry.execute("search", "test.search.live", "test-query");
-    assert.strictEqual(res.source, "deterministic-fallback");
-    assert.strictEqual(adapter.callCount, 1);
+    expect(res.source).toBe("deterministic-fallback");
+    expect(adapter.callCount).toBe(1);
 
-    // 2nd failure
     res = await registry.execute("search", "test.search.live", "test-query");
-    assert.strictEqual(res.source, "deterministic-fallback");
-    assert.strictEqual(adapter.callCount, 2);
+    expect(res.source).toBe("deterministic-fallback");
+    expect(adapter.callCount).toBe(2);
 
-    // 3rd failure (trips breaker in default config: maxFailures = 3)
     res = await registry.execute("search", "test.search.live", "test-query");
-    assert.strictEqual(res.source, "deterministic-fallback");
-    assert.strictEqual(adapter.callCount, 3);
+    expect(res.source).toBe("deterministic-fallback");
+    expect(adapter.callCount).toBe(3);
 
-    // 4th call - circuit is open, should NOT call execute
     res = await registry.execute("search", "test.search.live", "test-query");
-    assert.strictEqual(res.source, "deterministic-fallback");
-    assert.strictEqual(adapter.callCount, 3); // Still 3!
+    expect(res.source).toBe("deterministic-fallback");
+    expect(adapter.callCount).toBe(3);
   });
 });
