@@ -8,6 +8,7 @@ import { createX402Middleware } from "./lib/x402.js";
 import { logger } from "./lib/logger.js";
 import { config } from "./lib/config.js";
 import { UnsafeScrapeUrlError } from "./lib/scrape-url-safety.js";
+import { PaymentEvidenceError } from "./lib/payment-evidence.js";
 
 export const app = express();
 
@@ -64,6 +65,14 @@ app.use((error: Error, _req: express.Request, res: express.Response, _next: expr
     res.status(400).json({
       error: "Scrape URL is not allowed",
       type: "unsafe_scrape_url"
+    });
+    return;
+  }
+
+  if (error instanceof PaymentEvidenceError) {
+    res.status(400).json({
+      error: error.message,
+      type: "payment_evidence_error"
     });
     return;
   }

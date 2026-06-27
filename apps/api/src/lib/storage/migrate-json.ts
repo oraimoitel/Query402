@@ -15,7 +15,9 @@ const usageEventSchema = z.object({
   queryOrUrl: z.string().min(1),
   priceUsd: z.number(),
   network: z.string().min(1),
-  paymentStatus: z.enum(["paid", "failed", "demo-paid"]),
+  paymentStatus: z
+    .enum(["verified", "settled", "failed", "demo-paid", "paid"])
+    .transform((value) => (value === "paid" ? "settled" : value)),
   paymentTxHash: z.string().optional(),
   facilitatorUrl: z.string().optional(),
   payerPublicKey: z.string().optional(),
@@ -37,7 +39,7 @@ const paymentAttemptSchema = z.object({
   payerPublicKey: z.string().optional(),
   payToAddress: z.string().min(1),
   facilitatorUrl: z.string().min(1),
-  status: z.enum(["verified", "settled", "failed"]),
+  status: z.enum(["demo-paid", "verified", "settled", "failed"]),
   transactionHash: z.string().optional(),
   error: z.string().optional(),
   createdAt: z.string().min(1),
@@ -77,26 +79,28 @@ export interface JsonMigrationResult {
 const INSERT_USAGE = `
 INSERT OR IGNORE INTO usage_events (
   id, mode, endpoint, provider_id, query_or_url, price_usd, network,
-  payment_status, payment_tx_hash, facilitator_url, payer_public_key,
-  trace_id, created_at, latency_ms, sponsorship_grant_id, policy_decision,
-  payment_source, sponsor_public_key
+  payment_status, payment_kind, payment_tx_hash, asset, pay_to_address, amount,
+  facilitator_url, payer_public_key, trace_id, created_at, latency_ms,
+  sponsorship_grant_id, policy_decision, payment_source, sponsor_public_key
 ) VALUES (
   @id, @mode, @endpoint, @provider_id, @query_or_url, @price_usd, @network,
-  @payment_status, @payment_tx_hash, @facilitator_url, @payer_public_key,
-  @trace_id, @created_at, @latency_ms, @sponsorship_grant_id, @policy_decision,
-  @payment_source, @sponsor_public_key
+  @payment_status, @payment_kind, @payment_tx_hash, @asset, @pay_to_address, @amount,
+  @facilitator_url, @payer_public_key, @trace_id, @created_at, @latency_ms,
+  @sponsorship_grant_id, @policy_decision, @payment_source, @sponsor_public_key
 )
 `;
 
 const INSERT_PAYMENT = `
 INSERT OR IGNORE INTO payment_attempts (
-  id, endpoint, provider_id, amount_usd, network, payer_public_key,
-  pay_to_address, facilitator_url, status, transaction_hash, error,
-  created_at, sponsorship_grant_id, policy_decision, payment_source, sponsor_public_key
+  id, endpoint, provider_id, amount_usd, network, asset, amount, evidence_kind,
+  payer_public_key, pay_to_address, facilitator_url, status, transaction_hash,
+  facilitator_result, error, created_at, sponsorship_grant_id, policy_decision,
+  payment_source, sponsor_public_key
 ) VALUES (
-  @id, @endpoint, @provider_id, @amount_usd, @network, @payer_public_key,
-  @pay_to_address, @facilitator_url, @status, @transaction_hash, @error,
-  @created_at, @sponsorship_grant_id, @policy_decision, @payment_source, @sponsor_public_key
+  @id, @endpoint, @provider_id, @amount_usd, @network, @asset, @amount, @evidence_kind,
+  @payer_public_key, @pay_to_address, @facilitator_url, @status, @transaction_hash,
+  @facilitator_result, @error, @created_at, @sponsorship_grant_id, @policy_decision,
+  @payment_source, @sponsor_public_key
 )
 `;
 

@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import type { AnalyticsSummary, PaymentAttempt, PaymentSource, QueryMode, UsageEvent } from "@query402/shared";
 import { config } from "./config.js";
 import { getStorageRepository } from "./storage/index.js";
-import type { AnalyticsQueryOptions, PaginationOptions } from "./storage/types.js";
+import type { AnalyticsQueryOptions, PaginationOptions, PaymentUsagePair } from "./storage/types.js";
 
 export interface PersistPaidRequestInput {
   mode: QueryMode;
@@ -60,7 +60,7 @@ function buildUsageEvent(
     queryOrUrl: input.queryOrUrl,
     priceUsd: input.priceUsd,
     network: config.STELLAR_NETWORK,
-    paymentStatus: "paid",
+    paymentStatus: "settled",
     paymentTxHash: input.paymentResponseHeader ?? undefined,
     facilitatorUrl: config.X402_FACILITATOR_URL,
     payerPublicKey: input.payerPublicKey,
@@ -77,6 +77,10 @@ export async function saveUsageEvent(event: UsageEvent): Promise<void> {
 
 export async function savePaymentAttempt(payment: PaymentAttempt): Promise<void> {
   await getStorageRepository().savePaymentAttempt(payment);
+}
+
+export async function persistPaymentAndUsage(pair: PaymentUsagePair): Promise<void> {
+  await getStorageRepository().persistPaymentAndUsage(pair);
 }
 
 export async function getUsageEvents(options?: PaginationOptions): Promise<UsageEvent[]> {
@@ -97,7 +101,7 @@ export async function persistPaidRequest(input: PersistPaidRequestInput): Promis
     payerPublicKey: input.payerPublicKey
   });
 
-  await getStorageRepository().persistPaymentAndUsage({ payment, usage });
+  await persistPaymentAndUsage({ payment, usage });
 }
 
 export async function persistSponsoredPayment(input: PersistSponsoredPaymentInput): Promise<void> {
@@ -119,5 +123,5 @@ export async function persistSponsoredPayment(input: PersistSponsoredPaymentInpu
     sponsorshipFields
   );
 
-  await getStorageRepository().persistPaymentAndUsage({ payment, usage });
+  await persistPaymentAndUsage({ payment, usage });
 }

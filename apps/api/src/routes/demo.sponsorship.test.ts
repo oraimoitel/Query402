@@ -275,4 +275,29 @@ describe("POST /api/paid/run sponsorship", () => {
     expect(runPaidRequestMock).toHaveBeenCalledTimes(1);
     expect(await readGlobalBudgetSpent()).toBeCloseTo(0.01, 6);
   });
+
+  it("returns 409 when idempotency key is reused with a different query", async () => {
+    dbPath = applySponsorshipTestEnv();
+    const app = await createTestApp();
+    const idempotencyKey = randomUUID();
+    const signedGrant = await createSignedGrant();
+
+    const first = await postPaidRun(app, signedGrant, { idempotencyKey });
+    expect(first.status).toBe(200);
+
+    const conflict = await request(app)
+      .post("/api/paid/run")
+      .set("Idempotency-Key", idempotencyKey)
+      .set("X-Sponsorship-Grant", encodeGrantHeader(await createSignedGrant()))
+      .send({
+        mode: "search",
+        provider: "search.basic",
+        wallet: TEST_WALLET,
+        query: "different query"
+      });
+
+    expect(conflict.status).toBe(409);
+    expect(conflict.body.error).toBe("idempotency_key_conflict");
+    expect(runPaidRequestMock).toHaveBeenCalledTimes(1);
+  });
 });

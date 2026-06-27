@@ -26,26 +26,28 @@ const PENDING_STATUS_CODE = 0;
 const INSERT_USAGE = `
 INSERT INTO usage_events (
   id, mode, endpoint, provider_id, query_or_url, price_usd, network,
-  payment_status, payment_tx_hash, facilitator_url, payer_public_key,
-  trace_id, created_at, latency_ms, sponsorship_grant_id, policy_decision,
-  payment_source, sponsor_public_key
+  payment_status, payment_kind, payment_tx_hash, asset, pay_to_address, amount,
+  facilitator_url, payer_public_key, trace_id, created_at, latency_ms,
+  sponsorship_grant_id, policy_decision, payment_source, sponsor_public_key
 ) VALUES (
   @id, @mode, @endpoint, @provider_id, @query_or_url, @price_usd, @network,
-  @payment_status, @payment_tx_hash, @facilitator_url, @payer_public_key,
-  @trace_id, @created_at, @latency_ms, @sponsorship_grant_id, @policy_decision,
-  @payment_source, @sponsor_public_key
+  @payment_status, @payment_kind, @payment_tx_hash, @asset, @pay_to_address, @amount,
+  @facilitator_url, @payer_public_key, @trace_id, @created_at, @latency_ms,
+  @sponsorship_grant_id, @policy_decision, @payment_source, @sponsor_public_key
 )
 `;
 
 const INSERT_PAYMENT = `
 INSERT INTO payment_attempts (
-  id, endpoint, provider_id, amount_usd, network, payer_public_key,
-  pay_to_address, facilitator_url, status, transaction_hash, error,
-  created_at, sponsorship_grant_id, policy_decision, payment_source, sponsor_public_key
+  id, endpoint, provider_id, amount_usd, network, asset, amount, evidence_kind,
+  payer_public_key, pay_to_address, facilitator_url, status, transaction_hash,
+  facilitator_result, error, created_at, sponsorship_grant_id, policy_decision,
+  payment_source, sponsor_public_key
 ) VALUES (
-  @id, @endpoint, @provider_id, @amount_usd, @network, @payer_public_key,
-  @pay_to_address, @facilitator_url, @status, @transaction_hash, @error,
-  @created_at, @sponsorship_grant_id, @policy_decision, @payment_source, @sponsor_public_key
+  @id, @endpoint, @provider_id, @amount_usd, @network, @asset, @amount, @evidence_kind,
+  @payer_public_key, @pay_to_address, @facilitator_url, @status, @transaction_hash,
+  @facilitator_result, @error, @created_at, @sponsorship_grant_id, @policy_decision,
+  @payment_source, @sponsor_public_key
 )
 `;
 

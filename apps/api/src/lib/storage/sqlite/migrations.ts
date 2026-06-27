@@ -60,5 +60,19 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 
 CREATE INDEX IF NOT EXISTS idx_idempotency_keys_expires_at ON idempotency_keys (expires_at);
 `
+  },
+  {
+    version: 2,
+    sql: `
+ALTER TABLE usage_events ADD COLUMN payment_kind TEXT;
+ALTER TABLE usage_events ADD COLUMN asset TEXT;
+ALTER TABLE usage_events ADD COLUMN pay_to_address TEXT;
+ALTER TABLE usage_events ADD COLUMN amount TEXT;
+
+ALTER TABLE payment_attempts ADD COLUMN asset TEXT;
+ALTER TABLE payment_attempts ADD COLUMN amount TEXT;
+ALTER TABLE payment_attempts ADD COLUMN evidence_kind TEXT;
+ALTER TABLE payment_attempts ADD COLUMN facilitator_result TEXT;
+`
   }
 ];

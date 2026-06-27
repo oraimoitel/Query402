@@ -19,6 +19,9 @@ describe("InMemoryStorageRepository", () => {
 
     expect(summary.totalQueries).toBe(0);
     expect(summary.totalSpendUsd).toBe(0);
+    expect(summary.settledSpendUsd).toBe(0);
+    expect(summary.demoSpendUsd).toBe(0);
+    expect(summary.failedSpendUsd).toBe(0);
     expect(summary.recentUsage).toEqual([]);
     expect(summary.recentTransactions).toEqual([]);
   });

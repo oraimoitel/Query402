@@ -30,7 +30,7 @@ export function buildTestUsageEvent(overrides: Partial<UsageEvent> = {}): UsageE
     queryOrUrl: "test query",
     priceUsd: 0.01,
     network: "stellar:testnet",
-    paymentStatus: "paid",
+    paymentStatus: "settled",
     facilitatorUrl: "https://channels.openzeppelin.com/x402/testnet",
     traceId: `trace_${suffix}`,
     createdAt: new Date().toISOString(),

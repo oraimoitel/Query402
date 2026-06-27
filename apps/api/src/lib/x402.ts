@@ -1,22 +1,31 @@
 import { HTTPFacilitatorClient } from "@x402/core/server";
-import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import { paymentMiddlewareFromHTTPServer, x402HTTPResourceServer, x402ResourceServer } from "@x402/express";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import type { NextFunction, Request, Response } from "express";
 import type { HTTPRequestContext } from "@x402/core/server";
 import { getProviderById, protectedRouteBasePrices } from "./pricing.js";
 import { config } from "./config.js";
+import {
+  buildDemoPaymentEvidence,
+  buildEvidenceFromHttpContext,
+  formatUsdPrice,
+  getPaidRequestRecord,
+  persistPaymentEvidence,
+  requestFromHttpContext,
+  requirementsFromPaymentHeader,
+  setPaymentEvidence
+} from "./payment-evidence.js";
 
 type RouteMode = "search" | "news" | "scrape";
+type EvidenceRequest = Request & {
+  paymentEvidencePersisted?: boolean;
+};
 
 const basePriceByMode: Record<RouteMode, string> = {
   search: protectedRouteBasePrices["GET /x402/search"] ?? "$0.01",
   news: protectedRouteBasePrices["GET /x402/news"] ?? "$0.015",
   scrape: protectedRouteBasePrices["GET /x402/scrape"] ?? "$0.02"
 };
-
-function formatUsdPrice(value: number) {
-  return `$${value.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`;
-}
 
 function getProviderFromContext(context: HTTPRequestContext) {
   const rawProvider =
@@ -50,9 +59,13 @@ function demoMode402Middleware(req: Request, res: Response, next: NextFunction) 
   }
 
   const paidHeader = req.header("x-query402-demo-paid");
-  const paymentResponse = req.header("payment-response");
 
-  if (paidHeader === "true" || typeof paymentResponse === "string") {
+  if (paidHeader === "true") {
+    try {
+      setPaymentEvidence(req, buildDemoPaymentEvidence(req));
+    } catch (error) {
+      return next(error);
+    }
     return next();
   }
 
@@ -70,7 +83,7 @@ function demoMode402Middleware(req: Request, res: Response, next: NextFunction) 
       facilitator: config.X402_FACILITATOR_URL
     },
     instructions:
-      "For deterministic demo mode, retry with headers x-query402-demo-paid: true and payment-response: demo_tx_<id>."
+      "For deterministic demo mode, retry with header x-query402-demo-paid: true. Demo evidence is recorded separately from settled x402 payments."
   });
 }
 
@@ -103,6 +116,26 @@ export function createX402Middleware() {
     new ExactStellarScheme()
   );
 
+  const settlementFailedResponseBody = async (context: HTTPRequestContext, settleResult: { errorReason?: string; errorMessage?: string }) => {
+    const req = requestFromHttpContext(context);
+    const requirements = requirementsFromPaymentHeader(context.paymentHeader);
+    if (req && requirements && !(req as EvidenceRequest).paymentEvidencePersisted) {
+      const evidence = buildEvidenceFromHttpContext({
+        context,
+        requirements,
+        failure: settleResult.errorReason ?? settleResult.errorMessage ?? "settlement_failed"
+      });
+      setPaymentEvidence(req, evidence);
+      await persistPaymentEvidence(evidence, getPaidRequestRecord(req));
+      (req as EvidenceRequest).paymentEvidencePersisted = true;
+    }
+
+    return {
+      contentType: "application/json",
+      body: { error: "Payment settlement failed", type: "payment_settlement_failed" }
+    };
+  };
+
   const routeConfig = {
     "GET /x402/search": {
       accepts: {
@@ -111,7 +144,8 @@ export function createX402Middleware() {
         price: (context: HTTPRequestContext) => resolveRoutePrice(context, "search"),
         payTo: config.X402_PAY_TO_ADDRESS
       },
-      description: "Paid search endpoint on Query402"
+      description: "Paid search endpoint on Query402",
+      settlementFailedResponseBody
     },
     "GET /x402/news": {
       accepts: {
@@ -120,7 +154,8 @@ export function createX402Middleware() {
         price: (context: HTTPRequestContext) => resolveRoutePrice(context, "news"),
         payTo: config.X402_PAY_TO_ADDRESS
       },
-      description: "Paid news endpoint on Query402"
+      description: "Paid news endpoint on Query402",
+      settlementFailedResponseBody
     },
     "GET /x402/scrape": {
       accepts: {
@@ -129,9 +164,37 @@ export function createX402Middleware() {
         price: (context: HTTPRequestContext) => resolveRoutePrice(context, "scrape"),
         payTo: config.X402_PAY_TO_ADDRESS
       },
-      description: "Paid scrape endpoint on Query402"
+      description: "Paid scrape endpoint on Query402",
+      settlementFailedResponseBody
     }
   };
 
-  return paymentMiddleware(routeConfig, resourceServer);
+  resourceServer
+    .onAfterSettle(async (context) => {
+      const transportContext = context.transportContext;
+      const httpContext = transportContext && typeof transportContext === "object" && "request" in transportContext
+        ? (transportContext.request as HTTPRequestContext | undefined)
+        : undefined;
+      const req = httpContext ? requestFromHttpContext(httpContext) : undefined;
+      if (!req) {
+        return;
+      }
+
+      if (!httpContext) {
+        return;
+      }
+
+      const evidence = buildEvidenceFromHttpContext({
+        context: httpContext,
+        requirements: context.requirements,
+        paymentPayload: context.paymentPayload,
+        settleResult: context.result
+      });
+      setPaymentEvidence(req, evidence);
+      await persistPaymentEvidence(evidence, getPaidRequestRecord(req));
+      (req as EvidenceRequest).paymentEvidencePersisted = true;
+    });
+
+  const httpServer = new x402HTTPResourceServer(resourceServer, routeConfig);
+  return paymentMiddlewareFromHTTPServer(httpServer);
 }

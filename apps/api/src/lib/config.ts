@@ -53,6 +53,7 @@ const envSchema = z.object({
   SPONSORSHIP_GRANT_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   SPONSORSHIP_CHALLENGE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
   SPONSORSHIP_DB_PATH: z.string().min(1).default("data/sponsorship.db"),
+  IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
   ANALYTICS_DB_PATH: z.string().min(1).default("data/analytics.db"),
   ANALYTICS_STORAGE: z.enum(["sqlite", "memory"]).default("sqlite")
 });
