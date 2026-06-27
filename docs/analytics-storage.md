@@ -50,8 +50,8 @@ ANALYTICS_DB_PATH=data/analytics.db
    ```
 
 4. Dashboard widgets read from:
-   - `GET /api/usage`
-   - `GET /api/analytics`
+   - `GET /api/usage` — optional `?limit=` and `?offset=` (max 500)
+   - `GET /api/analytics` — optional `?recentUsageLimit=` and `?recentPaymentLimit=`
 
 ### Migrating from legacy `db.json`
 

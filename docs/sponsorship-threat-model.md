@@ -45,7 +45,6 @@ Sponsored queries require:
 ### Out of Scope (by design)
 
 - Unlimited public faucet
-- Full migration of analytics `db.json` to SQLite
 - Production mainnet deployment
 - On-chain per-query wallet settlement (wallet-paid path uses x402 directly)
 

@@ -37,8 +37,11 @@ Query402/
 │  │  │  ├─ x402.ts
 │  │  │  ├─ stellar.ts
 │  │  │  ├─ pricing.ts
-│  │  │  └─ persistence.ts
-│  │  └─ data/db.json
+│  │  │  ├─ persistence.ts
+│  │  │  └─ storage/          # SQLite + in-memory adapters
+│  │  └─ data/
+│  │     ├─ analytics.db
+│  │     └─ sponsorship.db
 │  ├─ web/
 │  │  └─ src/
 │  │     ├─ App.tsx
@@ -65,7 +68,7 @@ Query402/
 2. Web calls API catalog + paid route on `apps/api`.
 3. Paid route is gated by x402 middleware (`src/lib/x402.ts`).
 4. On payment success, provider service executes and returns structured payload.
-5. API logs usage/payment metadata in `data/db.json`.
+5. API logs usage/payment metadata in `data/analytics.db` (atomic SQLite write).
 6. Web refreshes `/api/usage` and `/api/analytics` widgets.
 
 ### B. CLI-driven query flow

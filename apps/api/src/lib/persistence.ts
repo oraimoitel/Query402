@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import type { AnalyticsSummary, PaymentAttempt, PaymentSource, QueryMode, UsageEvent } from "@query402/shared";
 import { config } from "./config.js";
 import { getStorageRepository } from "./storage/index.js";
+import type { AnalyticsQueryOptions, PaginationOptions } from "./storage/types.js";
 
 export interface PersistPaidRequestInput {
   mode: QueryMode;
@@ -78,16 +79,16 @@ export async function savePaymentAttempt(payment: PaymentAttempt): Promise<void>
   await getStorageRepository().savePaymentAttempt(payment);
 }
 
-export async function getUsageEvents(): Promise<UsageEvent[]> {
-  return getStorageRepository().getUsageEvents();
+export async function getUsageEvents(options?: PaginationOptions): Promise<UsageEvent[]> {
+  return getStorageRepository().getUsageEvents(options);
 }
 
-export async function getPaymentAttempts(): Promise<PaymentAttempt[]> {
-  return getStorageRepository().getPaymentAttempts();
+export async function getPaymentAttempts(options?: PaginationOptions): Promise<PaymentAttempt[]> {
+  return getStorageRepository().getPaymentAttempts(options);
 }
 
-export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
-  return getStorageRepository().getAnalyticsSummary();
+export async function getAnalyticsSummary(options?: AnalyticsQueryOptions): Promise<AnalyticsSummary> {
+  return getStorageRepository().getAnalyticsSummary(options);
 }
 
 export async function persistPaidRequest(input: PersistPaidRequestInput): Promise<void> {
