@@ -26,18 +26,24 @@ describe("public routes", () => {
   it("returns health metadata", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-21T10:00:00.000Z"));
-    const app = await createPublicApp();
 
-    const response = await request(app).get("/health");
+    try {
+      const app = await createPublicApp();
+      const response = await request(app).get("/health");
 
-    expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({
-      ok: true,
-      service: "query402-api",
-      network: "stellar:testnet",
-      timestamp: "2026-06-21T10:00:00.000Z"
-    });
-    vi.useRealTimers();
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        ok: true,
+        service: "query402-api",
+        version: "0.1.0",
+        nodeEnv: "test",
+        network: "stellar:testnet",
+        timestamp: "2026-06-21T10:00:00.000Z"
+      });
+      expect(typeof response.body.sponsorshipEnabled).toBe("boolean");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns provider catalog and category groupings", async () => {

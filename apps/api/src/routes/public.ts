@@ -3,6 +3,7 @@ import { z } from "zod";
 import { providers } from "../lib/pricing.js";
 import { getAnalyticsSummary, getUsageEvents } from "../lib/persistence.js";
 import { config } from "../lib/config.js";
+import { apiVersion } from "../lib/build-metadata.js";
 import { getCatalog } from "../services/query-service.js";
 import { MAX_USAGE_EVENTS } from "../lib/storage/constants.js";
 
@@ -22,6 +23,8 @@ publicRouter.get("/health", (_req, res) => {
   res.json({
     ok: true,
     service: "query402-api",
+    version: apiVersion,
+    nodeEnv: config.NODE_ENV,
     network: config.STELLAR_NETWORK,
     sponsorshipEnabled: config.sponsorshipEnabled,
     timestamp: new Date().toISOString()
