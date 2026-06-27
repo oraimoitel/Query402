@@ -9,6 +9,14 @@ export { createInMemoryStorageRepository } from "./memory.js";
 export { createSqliteStorageRepository } from "./sqlite/repository.js";
 export { resolveApiDataPath } from "./paths.js";
 export { closeAnalyticsDb } from "./sqlite/store.js";
+export {
+  discoverLegacyDbJsonPaths,
+  formatMigrationResult,
+  migrateLegacyJsonToSqlite,
+  parseLegacyDbJson,
+  readLegacyDbJson
+} from "./migrate-json.js";
+export type { JsonMigrationOptions, JsonMigrationResult, LegacyDbJson } from "./migrate-json.js";
 
 let repository: StorageRepository | null = null;
 
