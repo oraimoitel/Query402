@@ -5,8 +5,9 @@ node_modules
 dist
 coverage
 *.log
-apps/api/data/*.json
-apps/api/data/*.db
+apps/api/data/*
+!apps/api/data/.gitkeep
+apps/api/apps/api/data/
 docs/ISSUE-9-AGENT-HANDOFF.md
 
 # TypeScript emit artifacts that must not live beside sources
