@@ -5,7 +5,9 @@ import {
   protectedRouteBasePrices,
   providers
 } from "./pricing.js";
-import { formatUsdPrice } from "./payment-evidence.js";
+import { applySponsorshipTestEnv } from "../test/sponsorship-test-helpers.js";
+
+applySponsorshipTestEnv();
 
 describe("provider pricing", () => {
   it("exposes enabled providers for each category", () => {
@@ -30,7 +32,9 @@ describe("provider pricing", () => {
     expect(getProviderById("scrape.extract")?.priceUsd).toBe(0.04);
   });
 
-  it("formats dynamic provider prices consistently", () => {
+  it("formats dynamic provider prices consistently", async () => {
+    const { formatUsdPrice } = await import("./payment-evidence.js");
+
     expect(formatUsdPrice(0.01)).toBe("$0.01");
     expect(formatUsdPrice(0.015)).toBe("$0.015");
     expect(formatUsdPrice(0.04)).toBe("$0.04");
