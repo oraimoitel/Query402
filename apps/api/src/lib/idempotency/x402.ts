@@ -43,9 +43,14 @@ function paymentProofKey(req: Request): string | null {
   }
 
   if (evidence?.kind === "demo") {
+    const demoProof = req.header("payment-response")?.trim();
+    if (!demoProof) {
+      return null;
+    }
+
     const payer = evidence.payer ?? req.header("x-demo-payer") ?? "demo-agent";
     const provider = typeof req.query.provider === "string" ? req.query.provider : "unknown";
-    return `demo:${req.path}:${provider}:${payer}`;
+    return `demo:${req.path}:${provider}:${payer}:${demoProof}`;
   }
 
   return null;

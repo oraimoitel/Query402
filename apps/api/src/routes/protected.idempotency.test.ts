@@ -48,7 +48,8 @@ function demoPaidRequest(app: express.Express) {
     .get("/x402/search")
     .query({ provider: "search.basic", q: "test query" })
     .set("x-query402-demo-paid", "true")
-    .set("x-demo-payer", "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
+    .set("x-demo-payer", "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF")
+    .set("payment-response", "demo-proof-default");
 }
 
 describe("x402 idempotency", () => {
@@ -106,17 +107,39 @@ describe("x402 idempotency", () => {
   it("returns cached response for payment proof replay without re-executing", async () => {
     const app = await createTestApp();
 
-    const first = await demoPaidRequest(app);
+    const first = await demoPaidRequest(app).set("payment-response", "demo-proof-replay");
     expect(first.status).toBe(200);
 
     const replay = await request(app)
       .get("/x402/search")
       .query({ provider: "search.basic", q: "different query" })
       .set("x-query402-demo-paid", "true")
-      .set("x-demo-payer", "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
+      .set("x-demo-payer", "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF")
+      .set("payment-response", "demo-proof-replay");
 
     expect(replay.status).toBe(200);
     expect(replay.body.result.traceId).toBe(first.body.result.traceId);
     expect(executeQueryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not replay demo responses without an explicit proof", async () => {
+    const app = await createTestApp();
+
+    const first = await request(app)
+      .get("/x402/search")
+      .query({ provider: "search.basic", q: "first query" })
+      .set("x-query402-demo-paid", "true")
+      .set("x-demo-payer", "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
+
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .get("/x402/search")
+      .query({ provider: "search.basic", q: "second query" })
+      .set("x-query402-demo-paid", "true")
+      .set("x-demo-payer", "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
+
+    expect(second.status).toBe(200);
+    expect(executeQueryMock).toHaveBeenCalledTimes(2);
   });
 });
