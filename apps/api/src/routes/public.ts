@@ -24,10 +24,20 @@ publicRouter.get("/api/catalog", (_req, res) => {
   res.json(getCatalog());
 });
 
-publicRouter.get("/api/usage", (_req, res) => {
-  res.json({ usage: getUsageEvents() });
+publicRouter.get("/api/usage", async (_req, res, next) => {
+  try {
+    const usage = await getUsageEvents();
+    res.json({ usage });
+  } catch (error) {
+    next(error);
+  }
 });
 
-publicRouter.get("/api/analytics", (_req, res) => {
-  res.json(getAnalyticsSummary());
+publicRouter.get("/api/analytics", async (_req, res, next) => {
+  try {
+    const analytics = await getAnalyticsSummary();
+    res.json(analytics);
+  } catch (error) {
+    next(error);
+  }
 });
