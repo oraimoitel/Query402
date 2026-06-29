@@ -41,6 +41,8 @@ describe("public routes", () => {
         timestamp: "2026-06-21T10:00:00.000Z"
       });
       expect(typeof response.body.sponsorshipEnabled).toBe("boolean");
+      expect(typeof response.body.uptimeSeconds).toBe("number");
+      expect(response.body.uptimeSeconds).toBeGreaterThanOrEqual(0);
     } finally {
       vi.useRealTimers();
     }
