@@ -133,6 +133,18 @@ export interface AnalyticsSummary {
   recentUsage: UsageEvent[];
 }
 
+export interface ProviderCapability {
+  id: string;
+  name: string;
+  category: ProviderCategory;
+  priceUsd: number;
+  sourceType: SourceType;
+  latencyEstimateMs: number;
+  enabled: boolean;
+  hasFallback: boolean;
+  caveat: string | null;
+}
+
 export interface SponsorshipGrant {
   grantId: string;
   wallet: string;
