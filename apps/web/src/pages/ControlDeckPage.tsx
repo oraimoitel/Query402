@@ -14,7 +14,6 @@ import {
   Sparkles,
   TerminalSquare,
   Check,
-  AlertTriangle,
   Clock,
   XCircle
 } from "lucide-react";
