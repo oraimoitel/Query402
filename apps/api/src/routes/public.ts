@@ -27,6 +27,7 @@ publicRouter.get("/health", (_req, res) => {
     nodeEnv: config.NODE_ENV,
     network: config.STELLAR_NETWORK,
     sponsorshipEnabled: config.sponsorshipEnabled,
+    demoMode: config.demoMode,
     timestamp: new Date().toISOString(),
     uptimeSeconds: process.uptime(),
     diagnostics: getConfigSnapshot()
