@@ -8,11 +8,15 @@ import {
   Radar,
   ReceiptText,
   Sparkles,
-  TerminalSquare
+  TerminalSquare,
+  Check,
+  AlertTriangle,
+  Clock,
+  ShieldCheck
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { AnalyticsResponse, PaidQueryResponse } from "../types.js";
-import { API_BASE_URL, fetchJson, money } from "../lib/api.js";
+import type { AnalyticsResponse, EvidenceCheckItem, PaidQueryResponse } from "../types.js";
+import { API_BASE_URL, fetchHealth, fetchJson, money } from "../lib/api.js";
 import { fetchSponsorshipEnabled, runSponsoredPaidQuery } from "../lib/sponsorship.js";
 import { runWalletPaidQuery } from "../lib/x402.js";
 import { WalletSessionMachine, FreighterAdapter, type WalletState } from "../lib/wallet/index.js";
@@ -61,6 +65,7 @@ export default function ControlDeckPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sponsorshipEnabled, setSponsorshipEnabled] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
   const modeProviders = useMemo(
     () => providers.filter((provider) => provider.category === mode && provider.enabled),
@@ -79,6 +84,68 @@ export default function ControlDeckPage() {
   const estimatedTokenBaseUnits = selectedProviderDetails
     ? toTokenBaseUnits(selectedProviderDetails.priceUsd)
     : "0";
+
+  const evidenceItems: EvidenceCheckItem[] = useMemo(() => {
+    const resultOk = result !== null;
+    const resultHasItems = (result?.result?.items?.length ?? 0) > 0;
+    const paymentCaptured = result?.payment?.paymentResponseHeader != null;
+    const hasUsage = (analytics?.totalQueries ?? 0) > 0;
+    const hasSpend = (analytics?.totalSpendUsd ?? 0) > 0;
+    const hasReceipts = (analytics?.recentTransactions?.length ?? 0) > 0;
+
+    return [
+      {
+        id: "catalog",
+        label: "Provider catalog loaded",
+        status: providers.length > 0 ? "pass" : "pending",
+        detail: providers.length > 0 ? `${providers.length} providers` : undefined
+      },
+      {
+        id: "query-exec",
+        label: "Paid/demo query executed",
+        status: resultOk ? "pass" : "pending",
+        detail: resultOk ? result!.result.providerName : undefined
+      },
+      {
+        id: "result",
+        label: "Result returned",
+        status: resultOk ? (resultHasItems ? "pass" : "warn") : "pending",
+        detail: resultOk
+          ? `${result!.result.items.length} items, ${result!.result.latencyMs}ms`
+          : undefined
+      },
+      {
+        id: "payment",
+        label: "Payment evidence captured",
+        status: paymentCaptured ? "pass" : "pending",
+        detail: paymentCaptured
+          ? demoMode
+            ? "demo tx (DEMO_MODE)"
+            : result!.payment.paymentResponseHeader!.slice(0, 16) + "..."
+          : undefined
+      },
+      {
+        id: "usage",
+        label: "Usage event persisted",
+        status: hasUsage ? "pass" : "pending",
+        detail: hasUsage ? `${analytics!.totalQueries} total` : undefined
+      },
+      {
+        id: "analytics",
+        label: "Analytics updated",
+        status: hasSpend ? "pass" : "pending",
+        detail: hasSpend ? money(analytics!.totalSpendUsd) + " tracked" : undefined
+      },
+      {
+        id: "receipt",
+        label: "Receipt/export available",
+        status: hasReceipts ? "pass" : "pending",
+        detail: hasReceipts
+          ? `${analytics!.recentTransactions.length} transaction(s)`
+          : undefined
+      }
+    ];
+  }, [providers, result, analytics, demoMode]);
 
   function shortAddress(address: string) {
     if (address.length < 12) {
@@ -116,13 +183,15 @@ export default function ControlDeckPage() {
 
   useEffect(() => {
     async function bootstrap() {
-      const [providersResponse, sponsorshipActive] = await Promise.all([
+      const [providersResponse, sponsorshipActive, health] = await Promise.all([
         fetchJson<{ providers: ProviderDefinition[] }>(`${API_BASE_URL}/api/providers`),
-        fetchSponsorshipEnabled(API_BASE_URL)
+        fetchSponsorshipEnabled(API_BASE_URL),
+        fetchHealth(API_BASE_URL)
       ]);
       setProviders(providersResponse.providers);
       setSelectedProvider(modeDefaultProvider.search);
       setSponsorshipEnabled(sponsorshipActive);
+      setDemoMode(health.demoMode ?? false);
       await refreshMetrics();
     }
 
@@ -560,6 +629,19 @@ export default function ControlDeckPage() {
               )}
             </pre>
           </div>
+
+          <div className="evidence-panel">
+            <h3>
+              <ShieldCheck size={14} />
+              SCF Evidence Checklist
+              {demoMode ? <span>DEMO</span> : null}
+            </h3>
+            <ul className="evidence-list">
+              {evidenceItems.map((item) => (
+                <EvidenceRow key={item.id} item={item} />
+              ))}
+            </ul>
+          </div>
         </aside>
       </main>
     </div>
@@ -589,5 +671,24 @@ function AnalyticsSkeletonRows(props: { count: number }) {
         <span key={index} className="analytics-skeleton analytics-skeleton--row" />
       ))}
     </div>
+  );
+}
+
+const evidenceIconMap: Record<string, ReactNode> = {
+  pass: <Check size={10} />,
+  warn: <AlertTriangle size={10} />,
+  pending: <Clock size={10} />
+};
+
+function EvidenceRow(props: { item: EvidenceCheckItem }) {
+  const { item } = props;
+  return (
+    <li className="evidence-item">
+      <span className={`evidence-icon ${item.status}`}>
+        {evidenceIconMap[item.status]}
+      </span>
+      <span className="evidence-label">{item.label}</span>
+      {item.detail ? <span className="evidence-detail">{item.detail}</span> : null}
+    </li>
   );
 }
