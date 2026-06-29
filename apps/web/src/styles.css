@@ -884,6 +884,38 @@ body {
   margin: 0;
 }
 
+.trace-box .proof-links {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(116, 147, 188, 0.2);
+}
+
+.trace-box .proof-links a {
+  color: #6cf;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.trace-box .proof-links a:hover {
+  color: #8ef;
+}
+
+.feed-row .proof-link {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.feed-row .proof-link a {
+  color: #6cf;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 0.68rem;
+}
+
+.feed-row .proof-link a:hover {
+  color: #8ef;
+}
+
 .item-stack {
   margin-top: 0.6rem;
   display: grid;

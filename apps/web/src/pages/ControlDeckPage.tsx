@@ -436,6 +436,30 @@ export default function ControlDeckPage() {
                 <div className="trace-box">
                   <p>payment-response: {result.payment.paymentResponseHeader ?? "<none>"}</p>
                   <p>network: {result.payment.network}</p>
+                  {result.payment.evidence?.proofLinks && (
+                    <div className="proof-links">
+                      <p>
+                        tx:{" "}
+                        {result.payment.evidence.proofLinks.transaction !== "not_available" ? (
+                          <a href={result.payment.evidence.proofLinks.transaction} target="_blank" rel="noreferrer">
+                            {result.payment.evidence.transactionHash?.slice(0, 12)}...
+                          </a>
+                        ) : (
+                          "not_available"
+                        )}
+                      </p>
+                      <p>
+                        payer:{" "}
+                        {result.payment.evidence.proofLinks.payer !== "not_available" ? (
+                          <a href={result.payment.evidence.proofLinks.payer} target="_blank" rel="noreferrer">
+                            {result.payment.evidence.payer?.slice(0, 8)}...
+                          </a>
+                        ) : (
+                          "not_available"
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="item-stack">
@@ -514,6 +538,17 @@ export default function ControlDeckPage() {
                     <strong>{money(tx.amountUsd)}</strong>
                   </p>
                   <small>{new Date(tx.createdAt).toLocaleString()}</small>
+                  {tx.transactionHash && (
+                    <small className="proof-link">
+                      <a
+                        href={`https://stellar.expert/explorer/testnet/tx/${tx.transactionHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        tx: {tx.transactionHash.slice(0, 8)}...
+                      </a>
+                    </small>
+                  )}
                 </div>
               ))
             )}
