@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCapabilityMatrix,
   getProviderById,
   getProvidersByCategory,
   protectedRouteBasePrices,
@@ -103,4 +104,49 @@ describe("provider catalog baseline", () => {
       expect(actual!.sourceType, `${rowLabel} sourceType mismatch`).toBe(expected.sourceType);
     });
   }
+});
+
+describe("capability matrix", () => {
+  it("returns all providers with correct shape", () => {
+    const matrix = buildCapabilityMatrix();
+    expect(matrix.length).toBe(providers.length);
+
+    for (const entry of matrix) {
+      expect(entry).toMatchObject({
+        id: expect.any(String),
+        name: expect.any(String),
+        category: expect.stringMatching(/^(search|news|scrape)$/),
+        priceUsd: expect.any(Number),
+        sourceType: expect.stringMatching(/^(live|deterministic-fallback|unavailable)$/),
+        latencyEstimateMs: expect.any(Number),
+        enabled: expect.any(Boolean),
+        hasFallback: true,
+        caveat: expect.toBeOneOf([expect.any(String), null])
+      });
+      expect(entry.priceUsd).toBeGreaterThan(0);
+      expect(entry.latencyEstimateMs).toBeGreaterThan(0);
+    }
+  });
+
+  it("sorts deterministically by category then id", () => {
+    const matrix = buildCapabilityMatrix();
+    for (let i = 1; i < matrix.length; i++) {
+      const prev = matrix[i - 1];
+      const curr = matrix[i];
+      const catCmp = prev.category.localeCompare(curr.category);
+      if (catCmp === 0) {
+        expect(prev.id.localeCompare(curr.id)).toBeLessThanOrEqual(0);
+      } else {
+        expect(catCmp).toBeLessThan(0);
+      }
+    }
+  });
+
+  it("reports caveat when GROQ_API_KEY is missing", () => {
+    const matrix = buildCapabilityMatrix();
+    const allHaveCaveat = matrix.every(
+      (entry) => entry.caveat !== null && entry.caveat.includes("GROQ_API_KEY")
+    );
+    expect(allHaveCaveat).toBe(true);
+  });
 });

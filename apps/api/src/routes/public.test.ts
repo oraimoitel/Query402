@@ -1,5 +1,6 @@
 import express from "express";
 import request from "supertest";
+import { providerCapabilitySchema } from "@query402/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildTestUsageEvent } from "../test/storage-test-helpers.js";
 import { applyApiTestEnv, resetApiTestStorage } from "../test/api-test-helpers.js";
@@ -258,5 +259,33 @@ describe("public routes", () => {
     expect(analyticsResponse.body.totalQueries).toBe(1);
     expect(analyticsResponse.body.totalSpendUsd).toBe(0.01);
     expect(analyticsResponse.body.spendByCategory.search).toBe(0.01);
+  });
+
+  it("returns capability matrix with correct shape and deterministic order", async () => {
+    const app = await createPublicApp();
+    const response = await request(app).get("/api/matrix");
+
+    expect(response.status).toBe(200);
+    expect(response.body.updatedAt).toEqual(expect.any(String));
+
+    const { providers: matrix } = response.body;
+    expect(Array.isArray(matrix)).toBe(true);
+    expect(matrix.length).toBeGreaterThan(0);
+
+    for (const entry of matrix) {
+      const parsed = providerCapabilitySchema.safeParse(entry);
+      expect(parsed.success).toBe(true);
+    }
+
+    for (let i = 1; i < matrix.length; i++) {
+      const prev = matrix[i - 1];
+      const curr = matrix[i];
+      const catCmp = prev.category.localeCompare(curr.category);
+      if (catCmp === 0) {
+        expect(prev.id.localeCompare(curr.id)).toBeLessThanOrEqual(0);
+      } else {
+        expect(catCmp).toBeLessThan(0);
+      }
+    }
   });
 });
