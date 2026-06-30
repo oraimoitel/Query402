@@ -325,6 +325,7 @@ describe("capability matrix", () => {
     expect(matrix.length).toBe(providers.length);
 
     for (const entry of matrix) {
+      expect(entry.caveat === null || typeof entry.caveat === "string").toBe(true);
       expect(entry).toMatchObject({
         id: expect.any(String),
         name: expect.any(String),
@@ -333,8 +334,7 @@ describe("capability matrix", () => {
         sourceType: expect.stringMatching(/^(live|deterministic-fallback|unavailable)$/),
         latencyEstimateMs: expect.any(Number),
         enabled: expect.any(Boolean),
-        hasFallback: true,
-        caveat: expect.toBeOneOf([expect.any(String), null])
+        hasFallback: true
       });
       expect(entry.priceUsd).toBeGreaterThan(0);
       expect(entry.latencyEstimateMs).toBeGreaterThan(0);
