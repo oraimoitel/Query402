@@ -1,5 +1,4 @@
 import type { ProviderCapability, ProviderDefinition } from "@query402/shared";
-import { config } from "./config.js";
 
 const envKeyMapping: Record<string, string[]> = {
   "search.live": ["GROQ_API_KEY"],
@@ -14,7 +13,7 @@ const envKeyMapping: Record<string, string[]> = {
 function computeCaveat(providerId: string): string | null {
   const required = envKeyMapping[providerId];
   if (!required) return null;
-  const missing = required.filter((key) => !(config as Record<string, string | undefined>)[key]);
+  const missing = required.filter((key) => !process.env[key]);
   if (missing.length === 0) return null;
   return `${missing.join(", ")} not configured — falling back to deterministic results`;
 }
