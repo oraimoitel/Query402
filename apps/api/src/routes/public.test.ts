@@ -1,7 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildTestUsageEvent } from "../test/storage-test-helpers.js";
+import { buildPaidQueryFixture } from "../test/storage-test-helpers.js";
 import { applyApiTestEnv, resetApiTestStorage } from "../test/api-test-helpers.js";
 
 describe("public routes", () => {
@@ -202,4 +202,101 @@ describe("public routes", () => {
     expect(catalogResponse.body.byCategory.scrape.length).toBeGreaterThan(0);
   });
 
+  describe("paid query fixture", () => {
+    it("analytics reflects settled paid query from fixture", async () => {
+      const { persistPaymentAndUsage } = await import("../lib/persistence.js");
+      await persistPaymentAndUsage(buildPaidQueryFixture());
+
+      const app = await createPublicApp();
+      const analyticsResponse = await request(app).get("/api/analytics");
+
+      expect(analyticsResponse.status).toBe(200);
+      expect(analyticsResponse.body).toMatchObject({
+        totalQueries: 1,
+        totalSpendUsd: 0.01,
+        settledSpendUsd: 0.01,
+        demoSpendUsd: 0,
+        spendByCategory: { search: 0.01, news: 0, scrape: 0 },
+        executionSummary: {
+          totalExecutions: 1,
+          liveExecutions: 1,
+          fallbackExecutions: 0
+        }
+      });
+    });
+
+    it("analytics recentUsage and recentTransactions carry fixture evidence fields", async () => {
+      const { persistPaymentAndUsage } = await import("../lib/persistence.js");
+      await persistPaymentAndUsage(buildPaidQueryFixture());
+
+      const app = await createPublicApp();
+      const analyticsResponse = await request(app).get("/api/analytics");
+
+      expect(analyticsResponse.status).toBe(200);
+
+      const { recentUsage, recentTransactions } = analyticsResponse.body;
+
+      expect(recentUsage).toHaveLength(1);
+      expect(recentUsage[0]).toMatchObject({
+        id: "use_fixture_0001",
+        mode: "search",
+        providerId: "search.basic",
+        paymentStatus: "settled",
+        paymentKind: "settled",
+        asset: "USDC:testnet",
+        traceId: "trace_fixture_0001",
+        createdAt: "2026-06-30T12:00:00.000Z"
+      });
+
+      expect(recentTransactions).toHaveLength(1);
+      expect(recentTransactions[0]).toMatchObject({
+        id: "pay_fixture_0001",
+        providerId: "search.basic",
+        amountUsd: 0.01,
+        evidenceKind: "settled",
+        asset: "USDC:testnet",
+        status: "settled"
+      });
+    });
+
+    it("fixture data is unchanged across multiple insertions into separate stores", async () => {
+      const first = buildPaidQueryFixture();
+      const second = buildPaidQueryFixture();
+
+      expect(first.payment).toEqual(second.payment);
+      expect(first.usage).toEqual(second.usage);
+    });
+
+    it("demo variant records correct payment markers via fixture overrides", async () => {
+      const { persistPaymentAndUsage } = await import("../lib/persistence.js");
+      await persistPaymentAndUsage(
+        buildPaidQueryFixture({
+          payment: { id: "pay_fixture_demo_01", status: "demo-paid", evidenceKind: "demo", transactionHash: undefined },
+          usage: { id: "use_fixture_demo_01", paymentStatus: "demo-paid", paymentKind: "demo", paymentTxHash: undefined }
+        })
+      );
+
+      const app = await createPublicApp();
+      const analyticsResponse = await request(app).get("/api/analytics");
+
+      expect(analyticsResponse.status).toBe(200);
+      expect(analyticsResponse.body).toMatchObject({
+        totalQueries: 1,
+        demoSpendUsd: 0.01,
+        settledSpendUsd: 0
+      });
+
+      const { recentUsage, recentTransactions } = analyticsResponse.body;
+      expect(recentUsage[0]).toMatchObject({
+        id: "use_fixture_demo_01",
+        paymentStatus: "demo-paid",
+        paymentKind: "demo"
+      });
+      expect(recentTransactions[0]).toMatchObject({
+        id: "pay_fixture_demo_01",
+        status: "demo-paid",
+        evidenceKind: "demo"
+      });
+    });
+  });
 });
