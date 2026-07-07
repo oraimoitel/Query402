@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ProviderDefinition, QueryMode, SponsorshipPreview } from "@query402/shared";
 import {
   Activity,
+  AlertTriangle,
   CheckCircle2,
   CircleDollarSign,
   Clock4,
@@ -266,9 +267,7 @@ export default function ControlDeckPage() {
         if (err instanceof Error && err.name === "AbortError") {
           return;
         }
-        setPreviewError(
-          err instanceof Error ? err.message : "Grant preview unavailable"
-        );
+        setPreviewError(err instanceof Error ? err.message : "Grant preview unavailable");
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -382,6 +381,18 @@ export default function ControlDeckPage() {
             label="Queries"
             value={String(analytics?.totalQueries ?? 0)}
             icon={<Activity size={16} />}
+            isLoading={showAnalyticsSkeleton}
+          />
+          <StatTile
+            label="Demo Q"
+            value={String(analytics?.totalDemoQueries ?? 0)}
+            icon={<Sparkles size={16} />}
+            isLoading={showAnalyticsSkeleton}
+          />
+          <StatTile
+            label="Settled"
+            value={String(analytics?.totalSettledPayments ?? 0)}
+            icon={<CircleDollarSign size={16} />}
             isLoading={showAnalyticsSkeleton}
           />
           <StatTile
@@ -571,7 +582,6 @@ export default function ControlDeckPage() {
                   <span>{result.result.providerName}</span>
                   <span>{money(result.result.priceUsd)}</span>
                   <span>{result.result.latencyMs}ms</span>
-                  <span>{result.result.traceId.slice(0, 12)}</span>
                   <span className={`source-badge ${result.result.source}`}>
                     Source: {result.result.source}
                   </span>
@@ -584,14 +594,33 @@ export default function ControlDeckPage() {
                 </div>
 
                 <div className="trace-box">
-                  <p>payment-response: {result.payment.paymentResponseHeader ?? "<none>"}</p>
+                  <p className="trace-row">
+                    <span className="trace-label">Trace ID</span>
+                    <code className="trace-value">{result.traceId}</code>
+                    <button
+                      type="button"
+                      className="trace-copy-btn"
+                      onClick={() => navigator.clipboard.writeText(result.traceId)}
+                      title="Copy trace ID"
+                    >
+                      Copy
+                    </button>
+                  </p>
+                  <p>
+                    evidence:{" "}
+                    {result.payment.evidence?.status ?? result.payment.evidence?.kind ?? "none"}
+                  </p>
                   <p>network: {result.payment.network}</p>
                   {result.payment.evidence?.proofLinks && (
                     <div className="proof-links">
                       <p>
                         tx:{" "}
                         {result.payment.evidence.proofLinks.transaction !== "not_available" ? (
-                          <a href={result.payment.evidence.proofLinks.transaction} target="_blank" rel="noreferrer">
+                          <a
+                            href={result.payment.evidence.proofLinks.transaction}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
                             {result.payment.evidence.transactionHash?.slice(0, 12)}...
                           </a>
                         ) : (
@@ -601,7 +630,11 @@ export default function ControlDeckPage() {
                       <p>
                         payer:{" "}
                         {result.payment.evidence.proofLinks.payer !== "not_available" ? (
-                          <a href={result.payment.evidence.proofLinks.payer} target="_blank" rel="noreferrer">
+                          <a
+                            href={result.payment.evidence.proofLinks.payer}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
                             {result.payment.evidence.payer?.slice(0, 8)}...
                           </a>
                         ) : (
@@ -698,20 +731,63 @@ export default function ControlDeckPage() {
             )}
           </div>
 
-          <div className="feed-panel">
-            <h3>Recent transactions</h3>
+          <div className="analytics-panel">
+            <h3>Spend by payment source</h3>
             {showAnalyticsSkeleton ? (
               <AnalyticsSkeletonRows count={3} />
-            ) : (analytics?.recentTransactions ?? []).length === 0 ? (
+            ) : !hasUsageHistory ? (
               <p className="panel-empty-note">
-                No payments yet. Your x402 settlement history will show up here.
+                No spend recorded yet.
               </p>
             ) : (
-              analytics!.recentTransactions.slice(0, 5).map((tx) => (
+              <ul>
+                {Object.entries(analytics!.spendByPaymentSource).map(([source, amount]) => (
+                  <li key={source}>
+                    <span>{source === "demo" ? "Demo" : source === "sponsored" ? "Sponsored" : source === "wallet" ? "Wallet" : source}</span>
+                    <strong>{money(amount)}</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="feed-panel">
+            <h3>Demo activity (not on-chain)</h3>
+            {showAnalyticsSkeleton ? (
+              <AnalyticsSkeletonRows count={3} />
+            ) : (analytics?.recentDemoActivity ?? []).length === 0 ? (
+              <p className="panel-empty-note">
+                No demo activity yet. Demo-paid queries appear here.
+              </p>
+            ) : (
+              analytics!.recentDemoActivity.slice(0, 5).map((tx) => (
                 <div key={tx.id} className="feed-row">
                   <p>
                     <span>{tx.providerId}</span>
                     <strong>{money(tx.amountUsd)}</strong>
+                    <span className="source-badge demo">demo</span>
+                  </p>
+                  <small>{new Date(tx.createdAt).toLocaleString()}</small>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="feed-panel">
+            <h3>Real settled payments (on-chain)</h3>
+            {showAnalyticsSkeleton ? (
+              <AnalyticsSkeletonRows count={3} />
+            ) : (analytics?.recentSettledPayments ?? []).length === 0 ? (
+              <p className="panel-empty-note">
+                No on-chain settlements yet. Wallet-paid transactions appear here.
+              </p>
+            ) : (
+              analytics!.recentSettledPayments.slice(0, 5).map((tx) => (
+                <div key={tx.id} className="feed-row">
+                  <p>
+                    <span>{tx.providerId}</span>
+                    <strong>{money(tx.amountUsd)}</strong>
+                    <span className="source-badge settled">settled</span>
                   </p>
                   <small>{new Date(tx.createdAt).toLocaleString()}</small>
                   {tx.transactionHash && (
@@ -756,6 +832,11 @@ export default function ControlDeckPage() {
                             : ""
                         }`
                       : ""}
+                    {usage.priceOutlier ? (
+                      <span className="price-outlier-warning" title={usage.priceOutlierReason}>
+                        <AlertTriangle size={12} /> Price outlier
+                      </span>
+                    ) : null}
                   </small>
                 </div>
               ))
@@ -895,11 +976,7 @@ function SponsorshipPreviewPanel(props: {
       <header className="grant-preview-head">
         <ShieldCheck size={14} />
         <h3>Sponsored grant status</h3>
-        <span
-          className={
-            allowed ? "grant-preview-chip allowed" : "grant-preview-chip denied"
-          }
-        >
+        <span className={allowed ? "grant-preview-chip allowed" : "grant-preview-chip denied"}>
           {allowed ? (
             <>
               <CheckCircle2 size={12} /> {allowLabel}
@@ -915,11 +992,7 @@ function SponsorshipPreviewPanel(props: {
       <p className="grant-preview-summary">{allowSubtitle}</p>
 
       <div className="grant-preview-grid">
-        <GrantRow
-          label="Wallet"
-          value={walletDisplay}
-          tone="neutral"
-        />
+        <GrantRow label="Wallet" value={walletDisplay} tone="neutral" />
         <GrantRow
           label="Grant API"
           value={
@@ -931,11 +1004,7 @@ function SponsorshipPreviewPanel(props: {
           }
           tone="neutral"
         />
-        <GrantRow
-          label="Max per grant"
-          value={money(preview.grant.maxAmountUsd)}
-          tone="neutral"
-        />
+        <GrantRow label="Max per grant" value={money(preview.grant.maxAmountUsd)} tone="neutral" />
         <GrantRow
           label="Grant TTL"
           value={
@@ -951,11 +1020,7 @@ function SponsorshipPreviewPanel(props: {
                 : "neutral"
           }
         />
-        <GrantRow
-          label="Provider"
-          value={providerName}
-          tone={allowed ? "neutral" : "warn"}
-        />
+        <GrantRow label="Provider" value={providerName} tone={allowed ? "neutral" : "warn"} />
         <GrantRow
           label="Restriction"
           value={
@@ -971,24 +1036,18 @@ function SponsorshipPreviewPanel(props: {
         />
         <GrantRow
           label="Request price"
-          value={
-            preview.quotedPriceUsd > 0 ? money(preview.quotedPriceUsd) : "—"
-          }
+          value={preview.quotedPriceUsd > 0 ? money(preview.quotedPriceUsd) : "—"}
           tone={preview.priceFitsGrant ? "ok" : "deny"}
         />
         <GrantRow
           label="Wallet budget"
           value={`${money(preview.perWalletBudget.spentUsd)} / ${money(preview.perWalletBudget.limitUsd)}`}
-          tone={
-            preview.perWalletBudget.remainingUsd <= 0 ? "deny" : "neutral"
-          }
+          tone={preview.perWalletBudget.remainingUsd <= 0 ? "deny" : "neutral"}
         />
       </div>
 
       {!allowed ? (
-        <p className="grant-preview-actionable">
-          {denyActionableCopy(preview.decision)}
-        </p>
+        <p className="grant-preview-actionable">{denyActionableCopy(preview.decision)}</p>
       ) : (
         <p className="grant-preview-actionable ok">
           Ready to execute. Funds will be reserved against the wallet budget before the paid run.
@@ -998,7 +1057,11 @@ function SponsorshipPreviewPanel(props: {
   );
 }
 
-function GrantRow(props: { label: string; value: ReactNode; tone: "ok" | "warn" | "deny" | "neutral" }) {
+function GrantRow(props: {
+  label: string;
+  value: ReactNode;
+  tone: "ok" | "warn" | "deny" | "neutral";
+}) {
   return (
     <div className={`grant-preview-row tone-${props.tone}`}>
       <span className="grant-preview-label">{props.label}</span>
