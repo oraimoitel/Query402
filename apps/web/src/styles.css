@@ -1297,6 +1297,96 @@ body {
   line-height: 1.5;
 }
 
+.evidence-panel {
+  border: 1px solid rgba(129, 160, 201, 0.24);
+  border-radius: 14px;
+  background: rgba(11, 16, 26, 0.84);
+  padding: 0.72rem;
+}
+
+.evidence-panel h3 {
+  margin: 0 0 0.55rem;
+  color: #e8f2ff;
+  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.evidence-panel h3 span {
+  font-size: 0.65rem;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 999px;
+  padding: 0.08rem 0.4rem;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.evidence-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.evidence-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(130, 160, 196, 0.18);
+  border-radius: 9px;
+  padding: 0.35rem 0.5rem;
+  background: rgba(13, 18, 30, 0.5);
+  font-size: 0.75rem;
+  transition: border-color 170ms ease;
+}
+
+.evidence-item .evidence-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.evidence-item .evidence-icon.pass {
+  background: rgba(52, 211, 153, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.evidence-item .evidence-icon.warn {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.evidence-item .evidence-icon.pending {
+  background: rgba(107, 114, 128, 0.18);
+  color: #6b7280;
+  border: 1px solid rgba(107, 114, 128, 0.35);
+}
+
+.evidence-item .evidence-label {
+  flex: 1;
+  color: #dce9ff;
+}
+
+.evidence-item .evidence-detail {
+  color: #768ba8;
+  font-size: 0.65rem;
+  font-family:
+    "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+}
+
 @media (max-width: 1140px) {
   .landing-hero {
     grid-template-columns: 1fr;
